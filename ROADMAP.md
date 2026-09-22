@@ -3,11 +3,11 @@
 Plan de desarrollo por fases. Cada fase se cierra con un release desplegado
 en Vercel antes de pasar a la siguiente.
 
-## Fase 0 — Base ✅
+## Fase 0 — Base (completa)
 - [x] Prototipo jugable: movimiento, disparo, oleadas, linterna, HUD.
 - [x] Despliegue en Vercel.
 
-## Fase 1 — Nivel 1 pulido ✅
+## Fase 1 — Nivel 1 pulido (completa)
 - [x] Historia y sistema de objetivos (no solo sobrevivir oleadas infinitas).
 - [x] Nivel 1 "El Apagón": buscar 3 bidones de combustible y encender el
       generador para atraer la oleada final.
@@ -15,6 +15,10 @@ en Vercel antes de pasar a la siguiente.
 - [x] Música de fondo procedural (capa adicional sobre el drone ambiental).
 - [x] Sprites reales (jugador, 3 tipos de zombie, arma, auto, pickups) del
       *Zombie Apocalypse Tileset* — reemplazan el dibujo por rectángulos.
+- [x] Pulido: vida en corazones, HUD de arma/objetivo con íconos de
+      inventario, suelo con textura real, más props (conos, cercas, arbustos,
+      señales), sonido de disparo mejorado, se quitaron todos los emojis de
+      la interfaz.
 
 ## Fase 2 — Nivel 2: "La Señal" (bloqueado, próximamente)
 - [ ] Objetivo: encontrar la radio de la policía y pedir ayuda.
@@ -32,9 +36,9 @@ en Vercel antes de pasar a la siguiente.
       falta la lógica de cambio de arma (teclas 1/2/3).
 - [ ] Perks entre oleadas.
 - [ ] Controles táctiles para móvil.
-- [ ] Reemplazar el suelo/edificios/vallas procedurales por el tileset del
-      mismo pack (folders "Modular Road/Fences/Big Building/Gas Station" sin
-      usar todavía) — pendiente para cuando se trabaje el mapa del Nivel 2.
+- [ ] Usar el resto del tileset sin explotar todavía (calles, edificios,
+      gasolinera, granja) para darle más variedad al mapa — pendiente para
+      cuando se trabaje el Nivel 2.
 
 ---
 

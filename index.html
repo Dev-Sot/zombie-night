@@ -34,21 +34,24 @@
     justify-content:space-between; align-items:flex-start; font-size:8px; text-shadow:2px 2px 0 #000;
   }
   .hpwrap{ width:130px; }
-  .hpbar{ width:100%; height:10px; background:#1a1a24; border:2px solid #000; border-radius:3px; overflow:hidden; }
-  .hpfill{ height:100%; background:linear-gradient(90deg,#ff5e5e,#ff9a5e); width:100%; transition:width .15s; }
+  .hearts{ display:flex; gap:2px; font-size:13px; line-height:1; }
+  .hearts .heart{ color:#3a2228; }
+  .hearts .heart.full{ color:var(--danger); }
+  .hearts .heart.half{ color:var(--danger); opacity:.45; }
   .hplabel{ margin-top:3px; color:var(--muted); }
   .waveinfo{ text-align:right; color:var(--accent); }
   .waveinfo .k{ color:var(--muted); font-size:7px; margin-top:3px; }
   .ammo{
     position:absolute; bottom:14px; right:14px; font-size:11px; color:var(--ink);
-    text-shadow:2px 2px 0 #000; text-align:right;
+    text-shadow:2px 2px 0 #000; text-align:right; display:flex; align-items:center; gap:6px;
   }
+  .ammo .weaponIcon{ width:30px; height:auto; image-rendering:pixelated; }
   .ammo .reload{ color:var(--danger); font-size:8px; margin-top:2px; animation:blink .5s steps(2) infinite; }
   .hidden{ display:none !important; }
   #muteBtn{
     position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6; pointer-events:auto;
     background:rgba(0,0,0,.45); border:2px solid #000; color:var(--ink);
-    font-family:inherit; font-size:11px; width:28px; height:28px; border-radius:6px; cursor:pointer;
+    font-family:inherit; font-size:9px; letter-spacing:1px; width:36px; height:22px; border-radius:5px; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
   .wavebanner{
@@ -59,7 +62,9 @@
   #objLabel{
     position:absolute; top:40px; left:50%; transform:translateX(-50%);
     font-size:6.5px; color:var(--accent); text-shadow:2px 2px 0 #000; text-align:center; max-width:230px;
+    display:flex; align-items:center; justify-content:center; gap:5px;
   }
+  #objLabel img{ width:16px; height:auto; image-rendering:pixelated; }
   #objArrow{
     position:absolute; top:54px; left:50%; width:0; height:0;
     border-left:5px solid transparent; border-right:5px solid transparent; border-bottom:9px solid var(--accent);
@@ -95,12 +100,12 @@
 <body>
 <div id="wrap">
   <canvas id="game"></canvas>
-  <button id="muteBtn" title="Silenciar">🔊</button>
+  <button id="muteBtn" title="Silenciar">SON</button>
 
   <div class="hud">
     <div class="topbar">
       <div class="hpwrap">
-        <div class="hpbar"><div class="hpfill" id="hpfill"></div></div>
+        <div class="hearts" id="hearts"></div>
         <div class="hplabel" id="hplabel">100/100</div>
       </div>
       <div class="waveinfo">
@@ -112,8 +117,11 @@
     <div id="objArrow"></div>
     <div class="wavebanner" id="waveBanner">OLEADA 1</div>
     <div class="ammo">
-      <div id="ammoLabel">8 / 32</div>
-      <div class="reload hidden" id="reloadLabel">RECARGANDO...</div>
+      <img class="weaponIcon" src="assets/slot_pistol.png" alt="">
+      <div>
+        <div id="ammoLabel">8 / 32</div>
+        <div class="reload hidden" id="reloadLabel">RECARGANDO...</div>
+      </div>
     </div>
   </div>
 
@@ -153,7 +161,7 @@
     <div class="sub">
       <b>WASD</b> moverte &nbsp; <b>MOUSE</b> apuntar &nbsp; <b>CLIC</b> disparar &nbsp; <b>R</b> recargar
     </div>
-    <button class="btn" id="beginBtn">EMPEZAR ▶</button>
+    <button class="btn" id="beginBtn">EMPEZAR</button>
   </div>
 
   <div class="overlay hidden" id="winOverlay">
@@ -162,7 +170,7 @@
     <div class="statline">Oleadas superadas: <b id="winWave">1</b></div>
     <div class="statline">Bajas: <b id="winKills">0</b></div>
     <div class="btnrow">
-      <button class="btn" id="winRetryBtn">JUGAR DE NUEVO ⟳</button>
+      <button class="btn" id="winRetryBtn">JUGAR DE NUEVO</button>
       <button class="btn alt" id="winMenuBtn">MENÚ</button>
     </div>
   </div>
@@ -173,7 +181,7 @@
     <div class="statline">Bajas: <b id="finalKills">0</b></div>
     <div class="statline" id="bestLine">Mejor oleada: <b id="bestWave">1</b></div>
     <div class="btnrow">
-      <button class="btn" id="retryBtn">REINTENTAR ⟳</button>
+      <button class="btn" id="retryBtn">REINTENTAR</button>
       <button class="btn alt" id="overMenuBtn">MENÚ</button>
     </div>
   </div>
@@ -202,11 +210,16 @@ const SPRITE_FILES={
   zombie_shambler:'assets/zombie_shambler.png',
   zombie_runner:'assets/zombie_runner.png',
   zombie_brute:'assets/zombie_brute.png',
-  gun:'assets/gun.png',
   pickup_fuel:'assets/pickup_fuel.png',
   pickup_health:'assets/pickup_health.png',
   pickup_ammo:'assets/pickup_ammo.png',
-  prop_car:'assets/prop_car.png'
+  prop_car:'assets/prop_car.png',
+  prop_bush:'assets/prop_bush.png',
+  prop_fence:'assets/prop_fence.png',
+  prop_cone:'assets/prop_cone.png',
+  prop_sign:'assets/prop_sign.png',
+  tile_ground:'assets/tile_ground.png',
+  slot_fuel:'assets/slot_fuel.png'
 };
 const SPRITES={};
 const ANIM={};
@@ -296,7 +309,11 @@ function noiseBurst(dur, filterType, freq, vol, q){
   src.connect(filt).connect(gain).connect(actx.destination);
   src.start(t0); src.stop(t0+dur+0.02);
 }
-function sfxShoot(){ noiseBurst(0.09,'highpass',1200,0.22,0.6); tone(180,0.05,'square',0.06,80); }
+function sfxShoot(){
+  noiseBurst(0.045,'highpass',2600,0.3,0.7);   // crack
+  noiseBurst(0.11,'lowpass',1000,0.16,0.8);    // body/tail
+  tone(150,0.06,'square',0.1,40);              // low thump
+}
 function sfxReload(){ tone(500,0.05,'square',0.06); setTimeout(()=>tone(700,0.05,'square',0.06),140); }
 function sfxHurt(){ noiseBurst(0.2,'lowpass',400,0.2); tone(120,0.15,'sawtooth',0.1,50); }
 function sfxZombieHit(){ noiseBurst(0.08,'bandpass',600,0.15,2); }
@@ -347,7 +364,7 @@ function musicTick(){
 
 const muteBtn=document.getElementById('muteBtn');
 muteBtn.addEventListener('click',()=>{
-  muted=!muted; muteBtn.textContent = muted?'🔇':'🔊';
+  muted=!muted; muteBtn.textContent = muted?'MUDO':'SON';
   if(muted) stopDrone(); else if(state==='playing') startDrone();
 });
 
@@ -360,9 +377,19 @@ const ARENA_W=1100, ARENA_H=760;
 let camX=0, camY=0, shake=0;
 
 const lamps=[];
-for(let i=0;i<7;i++) lamps.push({x:80+Math.random()*(ARENA_W-160), y:80+Math.random()*(ARENA_H-160), r:70+Math.random()*20});
-const props=[]; // decorative wrecks
-for(let i=0;i<10;i++) props.push({x:Math.random()*ARENA_W, y:Math.random()*ARENA_H, w:22+Math.random()*14, h:12+Math.random()*8, type: Math.random()<0.5?'car':'crate'});
+for(let i=0;i<9;i++) lamps.push({x:80+Math.random()*(ARENA_W-160), y:80+Math.random()*(ARENA_H-160), r:75+Math.random()*22});
+
+const PROP_TYPES=['car','crate','bush','fence','cone','sign'];
+const PROP_WEIGHTS=[0.12,0.12,0.24,0.16,0.18,0.18];
+function pickPropType(){
+  const r=Math.random(); let acc=0;
+  for(let i=0;i<PROP_TYPES.length;i++){ acc+=PROP_WEIGHTS[i]; if(r<acc) return PROP_TYPES[i]; }
+  return PROP_TYPES[PROP_TYPES.length-1];
+}
+const props=[]; // decorative wrecks/clutter
+for(let i=0;i<26;i++){
+  props.push({x:Math.random()*ARENA_W, y:Math.random()*ARENA_H, type:pickPropType(), scale:0.9+Math.random()*0.4, flip:Math.random()<0.5});
+}
 
 function worldToScreen(x,y){ return [x-camX, y-camY]; }
 
@@ -396,9 +423,27 @@ function setupObjective(){
 function updateObjectiveHUD(){
   const el=document.getElementById('objLabel');
   if(!el) return;
-  if(!genActive) el.textContent='OBJETIVO: Combustible '+fuelCollected+'/3';
-  else if(!genReached) el.textContent='OBJETIVO: Lleva el combustible al generador';
-  else if(finalSurge) el.textContent='OBJETIVO: Resiste ('+surgeKillsLeft+')';
+  let icon='', text='';
+  if(!genActive){ icon='assets/slot_fuel.png'; text='Combustible '+fuelCollected+'/3'; }
+  else if(!genReached){ text='Lleva el combustible al generador'; }
+  else if(finalSurge){ text='Resiste ('+surgeKillsLeft+')'; }
+  el.innerHTML = (icon?'<img src="'+icon+'" alt="">':'') + 'OBJETIVO: '+text;
+}
+
+// ---------------- hearts HUD ----------------
+const HEART_COUNT=5;
+const heartsEl=document.getElementById('hearts');
+for(let i=0;i<HEART_COUNT;i++){
+  const s=document.createElement('span'); s.className='heart'; s.textContent='♥';
+  heartsEl.appendChild(s);
+}
+function updateHearts(hp,maxHp){
+  const per=maxHp/HEART_COUNT;
+  const nodes=heartsEl.children;
+  for(let i=0;i<HEART_COUNT;i++){
+    const remain=hp-i*per;
+    nodes[i].className='heart'+(remain>=per?' full':remain>0?' half':'');
+  }
 }
 
 function resetGame(){
@@ -742,7 +787,7 @@ function update(){
   if(waveBannerT>0){ waveBannerT--; if(waveBannerT<=0) document.getElementById('waveBanner').classList.remove('show'); }
 
   // HUD
-  document.getElementById('hpfill').style.width=Math.max(0,player.hp)+'%';
+  updateHearts(player.hp, player.maxHp);
   document.getElementById('hplabel').textContent=Math.max(0,Math.round(player.hp))+'/'+player.maxHp;
   document.getElementById('waveLabel').textContent='OLEADA '+wave;
   document.getElementById('killLabel').textContent='BAJAS '+killCount;
@@ -753,16 +798,19 @@ function update(){
 // ---------------- drawing ----------------
 function pxRect(x,y,w,h,color){ ctx.fillStyle=color; ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
 
+let groundPattern=null;
 function drawGround(){
-  ctx.fillStyle='#171a16';
-  ctx.fillRect(0,0,GW,GH);
-  ctx.strokeStyle='rgba(255,255,255,0.03)';
-  const off=20;
-  for(let gx=-((camX)%off); gx<GW; gx+=off){
-    ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,GH); ctx.stroke();
-  }
-  for(let gy=-((camY)%off); gy<GH; gy+=off){
-    ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(GW,gy); ctx.stroke();
+  const img=SPRITES.tile_ground;
+  if(img && img.naturalWidth){
+    if(!groundPattern) groundPattern=ctx.createPattern(img,'repeat');
+    ctx.save();
+    ctx.translate(-(camX%img.naturalWidth), -(camY%img.naturalHeight));
+    ctx.fillStyle=groundPattern;
+    ctx.fillRect(0,0,GW+img.naturalWidth,GH+img.naturalHeight);
+    ctx.restore();
+  } else {
+    ctx.fillStyle='#171a16';
+    ctx.fillRect(0,0,GW,GH);
   }
   // arena border
   const [bx,by]=worldToScreen(0,0);
@@ -770,19 +818,26 @@ function drawGround(){
   ctx.strokeRect(bx,by,ARENA_W,ARENA_H);
 }
 
+const PROP_SPRITE={ car:'prop_car', bush:'prop_bush', fence:'prop_fence', cone:'prop_cone', sign:'prop_sign' };
 function drawProps(){
   props.forEach(p=>{
     const [sx,sy]=worldToScreen(p.x,p.y);
     if(sx<-40||sy<-40||sx>GW+40||sy>GH+40) return;
-    if(p.type==='car'){
-      const img=SPRITES.prop_car;
-      if(img && img.naturalWidth){
-        const dh=p.h, dw=dh*(img.naturalWidth/img.naturalHeight);
-        ctx.drawImage(img, sx,sy,dw,dh);
-      }
+    if(p.type==='crate'){
+      const w=16*p.scale, h=12*p.scale;
+      pxRect(sx,sy,w,h,'#4a3a28');
+      pxRect(sx+1,sy+1,w-2,2,'#5f4b34');
+      return;
+    }
+    const img=SPRITES[PROP_SPRITE[p.type]];
+    if(!img || !img.naturalWidth) return;
+    const dw=img.naturalWidth*p.scale, dh=img.naturalHeight*p.scale;
+    if(p.flip){
+      ctx.save(); ctx.translate(sx+dw,sy); ctx.scale(-1,1);
+      ctx.drawImage(img,0,0,dw,dh);
+      ctx.restore();
     } else {
-      pxRect(sx,sy,p.w*0.6,p.h*0.7,'#4a3a28');
-      pxRect(sx+1,sy+1,p.w*0.6-2,2,'#5f4b34');
+      ctx.drawImage(img, sx,sy,dw,dh);
     }
   });
 }
@@ -838,22 +893,8 @@ function drawSurvivor(){
   ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0,7,7,3,0,0,Math.PI*2); ctx.fill();
   drawSpriteEntity('player', player.angle, player.walk*0.6, 1.15, hurt?'brightness(2.2)':null);
   ctx.restore();
-
-  // gun rotated to aim
-  ctx.save();
-  ctx.translate(sx,sy-2);
-  ctx.rotate(player.angle);
-  ctx.fillStyle='#d9a86b'; ctx.fillRect(0,-1.5,4,3);
-  const gunImg=SPRITES.gun;
-  let gw=9,gh=6;
-  if(gunImg && gunImg.naturalWidth){
-    const s=1.6; gw=gunImg.naturalWidth*s; gh=gunImg.naturalHeight*s;
-    ctx.drawImage(gunImg, 3, -gh/2, gw, gh);
-  } else {
-    ctx.fillStyle='#555a5e'; ctx.fillRect(6,-1,9,2);
-  }
-  if(mouseDown && player.fireCd>6){ ctx.fillStyle='#ffe9a8'; ctx.fillRect(3+gw-2,-2,4,4); }
-  ctx.restore();
+  // the sprite's own walk pose already shows the held weapon; aim direction
+  // is communicated by the flashlight cone + the muzzle-flash particle on fire.
 }
 
 const ZSPRITE={ shambler:'zombie_shambler', runner:'zombie_runner', brute:'zombie_brute' };
@@ -903,16 +944,16 @@ function drawParticles(){
 
 function drawFog(){
   fctx.clearRect(0,0,GW,GH);
-  fctx.fillStyle='rgba(4,4,8,0.93)';
+  fctx.fillStyle='rgba(4,4,8,0.88)';
   fctx.fillRect(0,0,GW,GH);
   fctx.globalCompositeOperation='destination-out';
 
   const [psx,psy]=worldToScreen(player.x,player.y);
   // ambient radius around player
-  let g=fctx.createRadialGradient(psx,psy,0,psx,psy,46);
+  let g=fctx.createRadialGradient(psx,psy,0,psx,psy,56);
   g.addColorStop(0,'rgba(255,255,255,0.9)');
   g.addColorStop(1,'rgba(255,255,255,0)');
-  fctx.fillStyle=g; fctx.beginPath(); fctx.arc(psx,psy,46,0,Math.PI*2); fctx.fill();
+  fctx.fillStyle=g; fctx.beginPath(); fctx.arc(psx,psy,56,0,Math.PI*2); fctx.fill();
 
   // cone flashlight
   const coneLen=150, coneHalf=0.42;
@@ -933,7 +974,7 @@ function drawFog(){
   lamps.forEach(l=>{
     const [sx,sy]=worldToScreen(l.x,l.y);
     const lg=fctx.createRadialGradient(sx,sy,0,sx,sy,l.r);
-    lg.addColorStop(0,'rgba(255,230,180,0.75)');
+    lg.addColorStop(0,'rgba(255,230,180,0.82)');
     lg.addColorStop(1,'rgba(255,230,180,0)');
     fctx.fillStyle=lg; fctx.beginPath(); fctx.arc(sx,sy,l.r,0,Math.PI*2); fctx.fill();
   });
