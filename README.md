@@ -4,7 +4,7 @@ Top-down zombie survival en pixel art. Un solo archivo (`index.html`), sin
 build ni dependencias: canvas 2D, cono de linterna dinámico, oleadas
 progresivas, y sonido sintetizado con Web Audio API.
 
-**🎮 Jugar:** _(link de Vercel — se agrega en el primer deploy)_
+**🎮 Jugar:** https://zombie-night.vercel.app
 
 ## Ejecutarlo localmente
 
