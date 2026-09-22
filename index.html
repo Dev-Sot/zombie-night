@@ -56,6 +56,15 @@
     text-shadow:3px 3px 0 #000; opacity:0; transition:opacity .3s; letter-spacing:2px; z-index:5;
   }
   .wavebanner.show{ opacity:1; }
+  #objLabel{
+    position:absolute; top:40px; left:50%; transform:translateX(-50%);
+    font-size:6.5px; color:var(--accent); text-shadow:2px 2px 0 #000; text-align:center; max-width:230px;
+  }
+  #objArrow{
+    position:absolute; top:54px; left:50%; width:0; height:0;
+    border-left:5px solid transparent; border-right:5px solid transparent; border-bottom:9px solid var(--accent);
+    transform-origin:50% 65%; opacity:0; transition:opacity .2s;
+  }
   .overlay{
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:12px; text-align:center; padding:20px; z-index:10;
@@ -71,8 +80,15 @@
     border-radius:6px; cursor:pointer; box-shadow:0 4px 0 #000;
   }
   .btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #000; border-bottom-width:1px; }
+  .btn.alt{ background:var(--muted); border-bottom-color:#333; }
   .statline{ font-size:9px; color:var(--ink); }
   .statline b{ color:var(--accent); }
+  .levelgrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:420px; margin-top:4px; }
+  .levelbtn{ display:flex; flex-direction:column; gap:5px; padding:14px 8px; }
+  .levelbtn .lvlnum{ font-size:7.5px; opacity:.85; }
+  .levelbtn .lvlname{ font-size:9px; }
+  .levelbtn:disabled{ opacity:.35; filter:grayscale(1); cursor:not-allowed; background:var(--muted); border-bottom-color:#2a2a2a; }
+  .btnrow{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
   @keyframes blink{ 50%{opacity:0;} }
 </style>
 </head>
@@ -92,6 +108,8 @@
         <div class="k" id="killLabel">BAJAS 0</div>
       </div>
     </div>
+    <div id="objLabel"></div>
+    <div id="objArrow"></div>
     <div class="wavebanner" id="waveBanner">OLEADA 1</div>
     <div class="ammo">
       <div id="ammoLabel">8 / 32</div>
@@ -99,13 +117,54 @@
     </div>
   </div>
 
-  <div class="overlay" id="startOverlay">
-    <div class="title">NOCHE SIN LUNA</div>
-    <div class="sub">
-      <b>WASD</b> moverte &nbsp; <b>MOUSE</b> apuntar &nbsp; <b>CLIC</b> disparar &nbsp; <b>R</b> recargar<br>
-      Sobrevive tantas oleadas como puedas. La luz es tu única aliada.
+  <div class="overlay" id="menuOverlay">
+    <div class="title" style="font-size:18px;">NOCHE SIN LUNA</div>
+    <div class="sub">Elige un nivel. La luz es tu única aliada.</div>
+    <div class="levelgrid">
+      <button class="btn levelbtn" id="lvl1Btn">
+        <span class="lvlnum">NIVEL 1</span>
+        <span class="lvlname">EL APAGÓN</span>
+      </button>
+      <button class="btn levelbtn" disabled>
+        <span class="lvlnum">NIVEL 2</span>
+        <span class="lvlname">PRÓXIMAMENTE</span>
+      </button>
+      <button class="btn levelbtn" disabled>
+        <span class="lvlnum">NIVEL 3</span>
+        <span class="lvlname">PRÓXIMAMENTE</span>
+      </button>
+      <button class="btn levelbtn" disabled>
+        <span class="lvlnum">NIVEL 4</span>
+        <span class="lvlname">PRÓXIMAMENTE</span>
+      </button>
     </div>
-    <button class="btn" id="startBtn">ENTRAR ▶</button>
+  </div>
+
+  <div class="overlay hidden" id="introOverlay">
+    <div class="title" style="font-size:14px;color:var(--accent);">NIVEL 1 · EL APAGÓN</div>
+    <div class="sub" style="text-align:left;">
+      La luna nueva dejó el barrio a oscuras justo cuando cayó la red
+      eléctrica. Minutos después, los que caminaban por la calle empezaron a
+      atacar a quien se cruzara.<br><br>
+      Si enciendes el generador de la vieja estación, las farolas volverán y
+      podrás salir de esta cuadra con vida.
+      <b>Busca 3 bidones de combustible</b> sin que te alcancen.
+    </div>
+    <div class="sub">
+      <b>WASD</b> moverte &nbsp; <b>MOUSE</b> apuntar &nbsp; <b>CLIC</b> disparar &nbsp; <b>R</b> recargar
+    </div>
+    <button class="btn" id="beginBtn">EMPEZAR ▶</button>
+  </div>
+
+  <div class="overlay hidden" id="winOverlay">
+    <div class="title" style="font-size:15px;color:var(--ok);text-shadow:3px 3px 0 #013016,6px 6px 0 #000;">GENERADOR ENCENDIDO</div>
+    <div class="sub">Las farolas del barrio vuelven a encenderse. Por ahora, aquí termina tu noche.</div>
+    <div class="statline">Oleadas superadas: <b id="winWave">1</b></div>
+    <div class="statline">Bajas: <b id="winKills">0</b></div>
+    <div class="btnrow">
+      <button class="btn" id="winRetryBtn">JUGAR DE NUEVO ⟳</button>
+      <button class="btn alt" id="winMenuBtn">MENÚ</button>
+    </div>
   </div>
 
   <div class="overlay hidden" id="overOverlay">
@@ -113,7 +172,10 @@
     <div class="statline">Oleada alcanzada: <b id="finalWave">1</b></div>
     <div class="statline">Bajas: <b id="finalKills">0</b></div>
     <div class="statline" id="bestLine">Mejor oleada: <b id="bestWave">1</b></div>
-    <button class="btn" id="retryBtn">REINTENTAR ⟳</button>
+    <div class="btnrow">
+      <button class="btn" id="retryBtn">REINTENTAR ⟳</button>
+      <button class="btn alt" id="overMenuBtn">MENÚ</button>
+    </div>
   </div>
 </div>
 
@@ -176,7 +238,7 @@ function sfxReload(){ tone(500,0.05,'square',0.06); setTimeout(()=>tone(700,0.05
 function sfxHurt(){ noiseBurst(0.2,'lowpass',400,0.2); tone(120,0.15,'sawtooth',0.1,50); }
 function sfxZombieHit(){ noiseBurst(0.08,'bandpass',600,0.15,2); }
 function sfxZombieDie(){ noiseBurst(0.3,'lowpass',300,0.18); tone(90,0.25,'sawtooth',0.08,30); }
-function sfxGroan(){ 
+function sfxGroan(){
   if(muted||!actx) return;
   const t0=actx.currentTime, dur=0.5+Math.random()*0.4;
   const osc=actx.createOscillator(), gain=actx.createGain();
@@ -192,6 +254,9 @@ function sfxGroan(){
 }
 function sfxPickup(){ tone(700,0.06,'square',0.1,1100); setTimeout(()=>tone(1100,0.06,'square',0.09),50); }
 function sfxWave(){ tone(200,0.1,'triangle',0.1,300); setTimeout(()=>tone(300,0.12,'triangle',0.1,450),100); }
+function sfxFuel(){ tone(520,0.08,'square',0.12,950); setTimeout(()=>tone(780,0.08,'square',0.1),60); }
+function sfxGenerator(){ tone(70,0.55,'sawtooth',0.16,650); setTimeout(()=>tone(320,0.32,'triangle',0.12,920),220); }
+function sfxLevelWin(){ [440,554,659,880].forEach((f,i)=>setTimeout(()=>tone(f,0.22,'triangle',0.12),i*110)); }
 
 function startDrone(){
   if(muted||!actx||droneNodes) return;
@@ -205,6 +270,17 @@ function startDrone(){
   droneNodes={osc,gain,lfo};
 }
 function stopDrone(){ if(droneNodes){ try{droneNodes.osc.stop(); droneNodes.lfo.stop();}catch(e){} droneNodes=null; } }
+
+// sparse procedural background music, layered under the drone
+let musicOn=false, musicTimer=0, musicStep=0;
+const MUSIC_PATTERN=[110,0,130.81,0,146.83,110,0,98,0,110,0,0];
+function startMusic(){ musicOn=true; musicTimer=20; musicStep=0; }
+function stopMusic(){ musicOn=false; }
+function musicTick(){
+  const f=MUSIC_PATTERN[musicStep%MUSIC_PATTERN.length];
+  if(f>0) tone(f,0.42,'triangle',0.035,f*0.97);
+  musicStep++;
+}
 
 const muteBtn=document.getElementById('muteBtn');
 muteBtn.addEventListener('click',()=>{
@@ -235,17 +311,39 @@ const player={
 };
 
 // ---------------- state ----------------
-let state='start'; // start | playing | over
+let state='menu'; // menu | intro | playing | win | over
 let t=0;
 let zombies=[], bullets=[], particles=[], pickups=[];
 let wave=0, killCount=0, spawnQueue=0, spawnTimer=0, waveClearT=0, waveActive=false;
 let waveBannerT=0;
+
+// ---------------- level 1 objective: find fuel, power the generator ----------------
+const FUEL_SPOTS=[{x:150,y:140},{x:950,y:180},{x:550,y:640}];
+const GENERATOR={x:1000,y:600,r:14};
+let fuel=[], fuelCollected=0, genActive=false, genReached=false;
+let finalSurge=false, surgeKillsLeft=0, surgeSpawnLeft=0, surgeSpawnTimer=0, levelWon=false;
+
+function setupObjective(){
+  fuel = FUEL_SPOTS.map(s=>({x:s.x,y:s.y,r:5,taken:false,bob:Math.random()*10}));
+  fuelCollected=0; genActive=false; genReached=false;
+  finalSurge=false; surgeKillsLeft=0; surgeSpawnLeft=0; surgeSpawnTimer=0;
+  levelWon=false;
+  updateObjectiveHUD();
+}
+function updateObjectiveHUD(){
+  const el=document.getElementById('objLabel');
+  if(!el) return;
+  if(!genActive) el.textContent='OBJETIVO: Combustible '+fuelCollected+'/3';
+  else if(!genReached) el.textContent='OBJETIVO: Lleva el combustible al generador';
+  else if(finalSurge) el.textContent='OBJETIVO: Resiste ('+surgeKillsLeft+')';
+}
 
 function resetGame(){
   player.x=ARENA_W/2; player.y=ARENA_H/2; player.hp=100; player.mag=player.magSize; player.reserve=32;
   player.reloading=false; player.reloadT=0; player.fireCd=0; player.invuln=0; player.dead=false;
   zombies=[]; bullets=[]; particles=[]; pickups=[];
   wave=0; killCount=0; t=0;
+  setupObjective();
   nextWave();
 }
 
@@ -314,15 +412,48 @@ wrapEl.addEventListener('pointerdown', (e)=>{
   ensureAudio();
   if(e.target.id==='muteBtn') return;
   updateMouse(e); mouseDown=true;
-  if(state==='start'){ startGame(); }
 });
 wrapEl.addEventListener('pointerup', ()=> mouseDown=false);
 wrapEl.addEventListener('pointerleave', ()=> mouseDown=false);
 
-document.getElementById('startBtn').addEventListener('click', ()=>{ ensureAudio(); startGame(); });
-document.getElementById('retryBtn').addEventListener('click', ()=>{ ensureAudio(); startGame(); });
+// ---------------- screen flow ----------------
+function hideAllOverlays(){
+  ['menuOverlay','introOverlay','winOverlay','overOverlay'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+}
+function updateLevelBadges(){
+  let done=false;
+  try{ done = localStorage.getItem('nsl_level1_complete')==='1'; }catch(e){}
+  const nameEl=document.querySelector('#lvl1Btn .lvlname');
+  if(nameEl) nameEl.textContent = 'EL APAGÓN' + (done?' ✓':'');
+}
+function showMenu(){
+  state='menu';
+  stopDrone(); stopMusic();
+  hideAllOverlays();
+  document.getElementById('menuOverlay').classList.remove('hidden');
+  updateLevelBadges();
+}
+function showIntro(){
+  state='intro';
+  hideAllOverlays();
+  document.getElementById('introOverlay').classList.remove('hidden');
+}
+function beginPlaying(){
+  hideAllOverlays();
+  resetGame();
+  state='playing';
+  startDrone();
+  startMusic();
+}
+
+document.getElementById('lvl1Btn').addEventListener('click', ()=>{ ensureAudio(); showIntro(); });
+document.getElementById('beginBtn').addEventListener('click', ()=>{ ensureAudio(); beginPlaying(); });
+document.getElementById('retryBtn').addEventListener('click', ()=>{ ensureAudio(); beginPlaying(); });
+document.getElementById('winRetryBtn').addEventListener('click', ()=>{ ensureAudio(); beginPlaying(); });
+document.getElementById('overMenuBtn').addEventListener('click', showMenu);
+document.getElementById('winMenuBtn').addEventListener('click', showMenu);
 window.addEventListener('keydown',(e)=>{
-  if(e.code==='Enter' && state==='over') startGame();
+  if(e.code==='Enter' && state==='over') beginPlaying();
 });
 
 function tryReload(){
@@ -332,22 +463,27 @@ function tryReload(){
   sfxReload();
 }
 
-function startGame(){
-  document.getElementById('startOverlay').classList.add('hidden');
-  document.getElementById('overOverlay').classList.add('hidden');
-  resetGame();
-  state='playing';
-  startDrone();
-}
-
 function endGame(){
   state='over';
-  stopDrone();
+  stopDrone(); stopMusic();
   if(wave>bestWave){ bestWave=wave; try{ localStorage.setItem('nsl_bestWave', String(bestWave)); }catch(e){} }
   document.getElementById('finalWave').textContent=wave;
   document.getElementById('finalKills').textContent=killCount;
   document.getElementById('bestWave').textContent=bestWave;
   document.getElementById('overOverlay').classList.remove('hidden');
+}
+
+function winLevel(){
+  if(levelWon) return;
+  levelWon=true;
+  state='win';
+  stopDrone(); stopMusic();
+  try{ localStorage.setItem('nsl_level1_complete','1'); }catch(e){}
+  if(wave>bestWave){ bestWave=wave; try{ localStorage.setItem('nsl_bestWave', String(bestWave)); }catch(e){} }
+  sfxLevelWin();
+  document.getElementById('winWave').textContent=wave;
+  document.getElementById('winKills').textContent=killCount;
+  document.getElementById('winOverlay').classList.remove('hidden');
 }
 
 // ---------------- particles ----------------
@@ -424,6 +560,47 @@ function update(){
   // ambient zombie groans
   if(Math.random()<0.006 && zombies.length>0) sfxGroan();
 
+  // background music heartbeat
+  if(musicOn){ musicTimer--; if(musicTimer<=0){ musicTick(); musicTimer=34; } }
+
+  // objective: fuel cans + generator + final surge
+  fuel.forEach(f=>{
+    if(!f.taken && dist(player.x,player.y,f.x,f.y) < player.r+f.r+3){
+      f.taken=true; fuelCollected++; sfxFuel(); updateObjectiveHUD();
+    }
+  });
+  if(fuelCollected>=3 && !genActive){ genActive=true; updateObjectiveHUD(); }
+  if(genActive && !genReached && dist(player.x,player.y,GENERATOR.x,GENERATOR.y) < player.r+GENERATOR.r+4){
+    genReached=true; finalSurge=true; surgeKillsLeft=10; surgeSpawnLeft=6; surgeSpawnTimer=0;
+    sfxGenerator();
+    waveBannerT=110;
+    document.getElementById('waveBanner').textContent='¡EL GENERADOR ATRAJO A LOS ZOMBIS!';
+    document.getElementById('waveBanner').classList.add('show');
+    updateObjectiveHUD();
+  }
+  if(finalSurge && surgeSpawnLeft>0){
+    surgeSpawnTimer--;
+    if(surgeSpawnTimer<=0){ spawnZombie(); surgeSpawnLeft--; surgeSpawnTimer=22; }
+  }
+
+  // compass toward current objective
+  const arrowEl=document.getElementById('objArrow');
+  if(arrowEl){
+    let tx=null,ty=null;
+    if(!genActive){
+      let best=null,bd=Infinity;
+      fuel.forEach(f=>{ if(!f.taken){ const d=dist(player.x,player.y,f.x,f.y); if(d<bd){bd=d;best=f;} } });
+      if(best){ tx=best.x; ty=best.y; }
+    } else if(!genReached){ tx=GENERATOR.x; ty=GENERATOR.y; }
+    if(tx!==null){
+      const ang=Math.atan2(ty-player.y, tx-player.x);
+      arrowEl.style.transform='translateX(-50%) rotate('+(ang*180/Math.PI+90)+'deg)';
+      arrowEl.style.opacity='1';
+    } else {
+      arrowEl.style.opacity='0';
+    }
+  }
+
   // zombies update
   zombies.forEach(z=>{
     if(z.state==='dead'){ z.deathT--; return; }
@@ -472,6 +649,10 @@ function update(){
           sfxZombieDie();
           if(Math.random()<0.22){
             pickups.push({x:z.x,y:z.y, type: Math.random()<0.6?'ammo':'health', r:5, bob:Math.random()*10});
+          }
+          if(finalSurge && surgeKillsLeft>0){
+            surgeKillsLeft--; updateObjectiveHUD();
+            if(surgeKillsLeft<=0) winLevel();
           }
         }
         break;
@@ -548,6 +729,30 @@ function drawLamps(){
     pxRect(sx-1,sy-30,2,32,'#20242b');
     pxRect(sx-3,sy-33,6,4,'#3a3a2a');
   });
+}
+
+function drawGenerator(){
+  const [sx,sy]=worldToScreen(GENERATOR.x,GENERATOR.y);
+  if(sx<-40||sy<-40||sx>GW+40||sy>GH+40) return;
+  pxRect(sx-9,sy-10,18,16,'#2a2f2f');
+  pxRect(sx-9,sy-10,18,3,'#3a4040');
+  const pulse = genActive ? (0.6+Math.sin(t*0.15)*0.4) : 0.25;
+  ctx.globalAlpha=pulse;
+  ctx.fillStyle = genActive ? '#7cff8f' : '#ff5e5e';
+  ctx.fillRect(sx-2,sy-6,4,4);
+  ctx.globalAlpha=1;
+}
+
+function drawFuel(f){
+  const [sx,sy]=worldToScreen(f.x,f.y);
+  const bob=Math.sin(t*0.08+f.bob)*2;
+  pxRect(sx-4,sy-5+bob,8,9,'#b23a2a');
+  pxRect(sx-4,sy-5+bob,8,2,'#7a2418');
+  pxRect(sx-2,sy-7+bob,4,2,'#3a3a3a');
+  ctx.globalAlpha=0.5+Math.sin(t*0.1)*0.3;
+  ctx.fillStyle='#ffb84d';
+  ctx.fillRect(sx-1,sy-5+bob,2,2);
+  ctx.globalAlpha=1;
 }
 
 function drawBullets(){
@@ -689,6 +894,16 @@ function drawFog(){
     fctx.fillStyle=lg; fctx.beginPath(); fctx.arc(sx,sy,l.r,0,Math.PI*2); fctx.fill();
   });
 
+  // generator glow once powered — helps the player find their way back
+  if(genActive){
+    const [gsx,gsy]=worldToScreen(GENERATOR.x,GENERATOR.y);
+    const gr = genReached ? 90 : 55;
+    const gg=fctx.createRadialGradient(gsx,gsy,0,gsx,gsy,gr);
+    gg.addColorStop(0,'rgba(140,255,160,0.8)');
+    gg.addColorStop(1,'rgba(140,255,160,0)');
+    fctx.fillStyle=gg; fctx.beginPath(); fctx.arc(gsx,gsy,gr,0,Math.PI*2); fctx.fill();
+  }
+
   fctx.globalCompositeOperation='source-over';
   ctx.drawImage(fog,0,0);
 }
@@ -701,6 +916,8 @@ function draw(){
   drawGround();
   drawProps();
   drawLamps();
+  drawGenerator();
+  fuel.forEach(f=>{ if(!f.taken) drawFuel(f); });
   pickups.forEach(drawPickup);
   const drawList = zombies.concat([{__player:true, y:player.y}]);
   drawList.sort((a,b)=>a.y-b.y);
@@ -727,10 +944,11 @@ function drawIdle(){
 // ---------------- loop ----------------
 function loop(){
   if(state==='playing'){ update(); draw(); }
-  else if(state==='start'){ drawIdle(); }
+  else if(state==='menu' || state==='intro'){ drawIdle(); }
   else { draw(); }
   requestAnimationFrame(loop);
 }
+updateLevelBadges();
 requestAnimationFrame(loop);
 
 })();
