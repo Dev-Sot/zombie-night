@@ -33,3 +33,8 @@ Cada `git push` a `main` redespliega solo.
 
 Ver [ROADMAP.md](ROADMAP.md) para las fases planeadas (mecánicas, niveles,
 multijugador, arte).
+
+## Créditos
+
+Sprites de personaje, zombies y objetos: *Zombie Apocalypse Tileset* por
+[Ittai Manero](https://ittaimanero.itch.io/zombie-apocalypse-tileset).

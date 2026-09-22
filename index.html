@@ -194,6 +194,69 @@ const fog = document.createElement('canvas');
 fog.width = GW; fog.height = GH;
 const fctx = fog.getContext('2d');
 
+// ---------------- sprites ----------------
+// Character/zombie sheets: 9 frames each (down x3, side x3, up x3), bottom-aligned.
+// Source: "Zombie Apocalypse Tileset" by Ittai Manero (itch.io, free, credit appreciated).
+const SPRITE_FILES={
+  player:'assets/player.png',
+  zombie_shambler:'assets/zombie_shambler.png',
+  zombie_runner:'assets/zombie_runner.png',
+  zombie_brute:'assets/zombie_brute.png',
+  gun:'assets/gun.png',
+  pickup_fuel:'assets/pickup_fuel.png',
+  pickup_health:'assets/pickup_health.png',
+  pickup_ammo:'assets/pickup_ammo.png',
+  prop_car:'assets/prop_car.png'
+};
+const SPRITES={};
+const ANIM={};
+let assetsLoaded=false;
+function prepAnim(key,frames){
+  const img=SPRITES[key];
+  ANIM[key]={img, frames, fw: img.naturalWidth/frames, fh: img.naturalHeight};
+}
+function loadAssets(done){
+  const keys=Object.keys(SPRITE_FILES);
+  let left=keys.length;
+  keys.forEach(key=>{
+    const img=new Image();
+    const settle=()=>{ left--; if(left<=0) finish(); };
+    img.onload=settle; img.onerror=settle;
+    img.src=SPRITE_FILES[key];
+    SPRITES[key]=img;
+  });
+  function finish(){
+    prepAnim('player',9);
+    prepAnim('zombie_shambler',9);
+    prepAnim('zombie_runner',9);
+    prepAnim('zombie_brute',9);
+    assetsLoaded=true;
+    done();
+  }
+}
+// direction: down = frames 0-2, side (flip for left) = frames 3-5, up = frames 6-8
+function dirGroup(angle){
+  let a=angle;
+  while(a>Math.PI) a-=Math.PI*2;
+  while(a<-Math.PI) a+=Math.PI*2;
+  if(a>Math.PI/4 && a<Math.PI*3/4) return {group:0, flip:false};
+  if(a<-Math.PI/4 && a>-Math.PI*3/4) return {group:2, flip:false};
+  return {group:1, flip:Math.cos(a)<0};
+}
+function drawSpriteEntity(key, angle, walkCounter, scale, filter){
+  const a=ANIM[key];
+  if(!a) return;
+  const {group,flip}=dirGroup(angle);
+  const cycle=Math.floor(walkCounter)%3;
+  const frame=group*3+cycle;
+  const sw=a.fw, sh=a.fh, dw=sw*scale, dh=sh*scale;
+  ctx.save();
+  if(flip) ctx.scale(-1,1);
+  if(filter) ctx.filter=filter;
+  ctx.drawImage(a.img, frame*sw,0,sw,sh, -dw/2,-dh, dw,dh);
+  ctx.restore();
+}
+
 // ---------------- audio ----------------
 let actx=null, muted=false, noiseBuf=null, droneNodes=null;
 function ensureAudio(){
@@ -348,9 +411,9 @@ function resetGame(){
 }
 
 const ZTYPES={
-  shambler:{hp:30, speed:0.5, dmg:8, r:7, bodyColor:'#5a7a4a', darkColor:'#2f4526', headColor:'#6f8f5f'},
-  runner:{hp:18, speed:1.25, dmg:6, r:6, bodyColor:'#8a3a3a', darkColor:'#4a1e1e', headColor:'#a05050'},
-  brute:{hp:110, speed:0.38, dmg:22, r:12, bodyColor:'#6a655e', darkColor:'#3a3733', headColor:'#7d766c'}
+  shambler:{hp:30, speed:0.5, dmg:8, r:7},
+  runner:{hp:18, speed:1.25, dmg:6, r:6},
+  brute:{hp:110, speed:0.38, dmg:22, r:12}
 };
 
 function nextWave(){
@@ -712,9 +775,11 @@ function drawProps(){
     const [sx,sy]=worldToScreen(p.x,p.y);
     if(sx<-40||sy<-40||sx>GW+40||sy>GH+40) return;
     if(p.type==='car'){
-      pxRect(sx,sy,p.w,p.h,'#2a2f38');
-      pxRect(sx+2,sy+2,p.w-4,p.h-4,'#3a4150');
-      pxRect(sx+3,sy+3,5,4,'#7ea8c9');
+      const img=SPRITES.prop_car;
+      if(img && img.naturalWidth){
+        const dh=p.h, dw=dh*(img.naturalWidth/img.naturalHeight);
+        ctx.drawImage(img, sx,sy,dw,dh);
+      }
     } else {
       pxRect(sx,sy,p.w*0.6,p.h*0.7,'#4a3a28');
       pxRect(sx+1,sy+1,p.w*0.6-2,2,'#5f4b34');
@@ -746,12 +811,14 @@ function drawGenerator(){
 function drawFuel(f){
   const [sx,sy]=worldToScreen(f.x,f.y);
   const bob=Math.sin(t*0.08+f.bob)*2;
-  pxRect(sx-4,sy-5+bob,8,9,'#b23a2a');
-  pxRect(sx-4,sy-5+bob,8,2,'#7a2418');
-  pxRect(sx-2,sy-7+bob,4,2,'#3a3a3a');
-  ctx.globalAlpha=0.5+Math.sin(t*0.1)*0.3;
+  const img=SPRITES.pickup_fuel;
+  if(img && img.naturalWidth){
+    const scale=1.4, dw=img.naturalWidth*scale, dh=img.naturalHeight*scale;
+    ctx.drawImage(img, sx-dw/2, sy-dh+2+bob, dw, dh);
+  }
+  ctx.globalAlpha=0.4+Math.sin(t*0.1)*0.3;
   ctx.fillStyle='#ffb84d';
-  ctx.fillRect(sx-1,sy-5+bob,2,2);
+  ctx.fillRect(sx-1,sy-9+bob,2,2);
   ctx.globalAlpha=1;
 }
 
@@ -767,40 +834,33 @@ function drawSurvivor(){
   const hurt = player.hurtFlash>0 && Math.floor(t/2)%2===0;
   ctx.save();
   ctx.translate(sx,sy);
-  const legSwing = Math.sin(player.walk)*3;
   // shadow
-  ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0,9,7,3,0,0,Math.PI*2); ctx.fill();
-  // legs
-  ctx.fillStyle='#2b3038';
-  ctx.fillRect(-4,2+Math.max(0,legSwing*0.4),3,6);
-  ctx.fillRect(1,2+Math.max(0,-legSwing*0.4),3,6);
-  // backpack
-  ctx.fillStyle='#5a4126'; ctx.fillRect(-7,-6,4,9);
-  ctx.fillStyle='#3d2c19'; ctx.fillRect(-7,-6,4,2);
-  // torso
-  ctx.fillStyle= hurt ? '#ff8f8f' : '#4a5a3a';
-  ctx.fillRect(-5,-7,10,10);
-  ctx.fillStyle= hurt ? '#ffb0b0' : '#5f7248';
-  ctx.fillRect(-5,-7,10,2);
-  // head
-  ctx.fillStyle='#d9a86b'; ctx.fillRect(-3,-13,6,6);
-  ctx.fillStyle='#33291d'; ctx.fillRect(-3,-13,6,2);
+  ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0,7,7,3,0,0,Math.PI*2); ctx.fill();
+  drawSpriteEntity('player', player.angle, player.walk*0.6, 1.15, hurt?'brightness(2.2)':null);
   ctx.restore();
 
-  // arm + gun rotated to aim
+  // gun rotated to aim
   ctx.save();
   ctx.translate(sx,sy-2);
   ctx.rotate(player.angle);
-  ctx.fillStyle='#d9a86b'; ctx.fillRect(0,-1.5,7,3);
-  ctx.fillStyle='#555a5e'; ctx.fillRect(6,-1,9,2);
-  if(mouseDown && player.fireCd>6){ ctx.fillStyle='#ffe9a8'; ctx.fillRect(15,-2,4,4); }
+  ctx.fillStyle='#d9a86b'; ctx.fillRect(0,-1.5,4,3);
+  const gunImg=SPRITES.gun;
+  let gw=9,gh=6;
+  if(gunImg && gunImg.naturalWidth){
+    const s=1.6; gw=gunImg.naturalWidth*s; gh=gunImg.naturalHeight*s;
+    ctx.drawImage(gunImg, 3, -gh/2, gw, gh);
+  } else {
+    ctx.fillStyle='#555a5e'; ctx.fillRect(6,-1,9,2);
+  }
+  if(mouseDown && player.fireCd>6){ ctx.fillStyle='#ffe9a8'; ctx.fillRect(3+gw-2,-2,4,4); }
   ctx.restore();
 }
 
+const ZSPRITE={ shambler:'zombie_shambler', runner:'zombie_runner', brute:'zombie_brute' };
+const ZSCALE={ shambler:1.15, runner:1.15, brute:1.8 };
 function drawZombie(z){
   const [sx,sy]=worldToScreen(z.x,z.y);
   if(sx<-30||sy<-30||sx>GW+30||sy>GH+30) return;
-  const cfg=ZTYPES[z.type];
   ctx.save();
   ctx.translate(sx,sy);
   if(z.state==='dead'){
@@ -809,23 +869,9 @@ function drawZombie(z){
     ctx.rotate(Math.PI/2);
     ctx.translate(0,4);
   }
-  const scale = z.type==='brute' ? 1.6 : 1;
-  ctx.scale(scale,scale);
   const flash = z.hitFlash>0;
-  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0,9,z.r*0.8,3,0,0,Math.PI*2); ctx.fill();
-  const legSwing=Math.sin(z.walk)*3;
-  ctx.fillStyle=cfg.darkColor;
-  ctx.fillRect(-4,2+Math.max(0,legSwing*0.5),3,6);
-  ctx.fillRect(1,2+Math.max(0,-legSwing*0.5),3,6);
-  ctx.fillStyle= flash ? '#ffffff' : cfg.bodyColor;
-  ctx.fillRect(-5,-7,10,10);
-  ctx.fillStyle= flash ? '#ffffff' : cfg.headColor;
-  ctx.fillRect(-3,-13,6,6);
-  // reaching arms
-  const armAng = Math.atan2(player.y-z.y, player.x-z.x);
-  ctx.save(); ctx.rotate(armAng*0.4);
-  ctx.fillStyle=flash?'#fff':cfg.darkColor; ctx.fillRect(2,-6,7,3);
-  ctx.restore();
+  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0,7,z.r*0.8,3,0,0,Math.PI*2); ctx.fill();
+  drawSpriteEntity(ZSPRITE[z.type], z.angle, z.walk*0.6, ZSCALE[z.type], flash?'brightness(3) grayscale(1)':null);
   ctx.restore();
 
   if(z.state!=='dead' && z.hp<z.maxHp){
@@ -838,12 +884,10 @@ function drawZombie(z){
 function drawPickup(p){
   const [sx,sy]=worldToScreen(p.x,p.y);
   const bob=Math.sin(t*0.1+p.bob)*2;
-  if(p.type==='ammo'){
-    ctx.fillStyle='#c9a227'; ctx.fillRect(sx-4,sy-4+bob,8,7);
-    ctx.fillStyle='#8a6c15'; ctx.fillRect(sx-4,sy-4+bob,8,2);
-  } else {
-    ctx.fillStyle='#e8e8e8'; ctx.fillRect(sx-4,sy-4+bob,8,8);
-    ctx.fillStyle='#ff5e5e'; ctx.fillRect(sx-1,sy-3+bob,2,6); ctx.fillRect(sx-3,sy-1+bob,6,2);
+  const img = SPRITES[p.type==='ammo' ? 'pickup_ammo' : 'pickup_health'];
+  if(img && img.naturalWidth){
+    const scale=1.5, dw=img.naturalWidth*scale, dh=img.naturalHeight*scale;
+    ctx.drawImage(img, sx-dw/2, sy-dh/2+bob, dw, dh);
   }
 }
 
@@ -948,8 +992,10 @@ function loop(){
   else { draw(); }
   requestAnimationFrame(loop);
 }
-updateLevelBadges();
-requestAnimationFrame(loop);
+loadAssets(()=>{
+  updateLevelBadges();
+  requestAnimationFrame(loop);
+});
 
 })();
 </script>
