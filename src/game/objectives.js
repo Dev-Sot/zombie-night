@@ -5,6 +5,7 @@ import { sfx, playMusic, ambient } from '../core/audio.js';
 import { addPickup } from './pickups.js';
 import { spawnZombie } from './zombies.js';
 import { burst, light, shake } from './fx.js';
+import { survivalText, survivalTarget } from './survival.js';
 
 // Cada nivel define una lista de pasos; se completan en orden.
 //   collect  — juntar ítems en puntos fijos
@@ -117,6 +118,7 @@ export function updateObjectives() {
 export function objectiveText() {
   const O = S.objective, st = O?.step;
   if (!st) return { text: 'Completado', bar: null };
+  if (st.type === 'endless') return survivalText();
   let text = st.text, bar = null;
   if (st.type === 'collect' || st.type === 'interact') text += ` ${O.count}/${O.total}`;
   if (st.type === 'hold') { bar = O.count / O.total; if (!O.inside) text = st.outside || 'Volvé a la zona'; }
@@ -129,6 +131,7 @@ export function objectiveText() {
 export function objectiveTarget(from) {
   const O = S.objective, st = O?.step;
   if (!st) return null;
+  if (st.type === 'endless') return survivalTarget(from);
   if (st.type === 'collect') {
     let best = null, bd = 1e9;
     for (const p of S.pickups) if (p.kind === 'item' && p.item === st.item) { const d = dist(p.x, p.y, from.x, from.y); if (d < bd) { bd = d; best = p; } }

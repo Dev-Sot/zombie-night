@@ -23,8 +23,8 @@ export function spawnZombie(type, x, y) {
   const T = ZTYPES[type];
   const z = {
     id: nextId++,
-    type, T, x, y, r: T.r, scale: T.scale || 1, hp: T.hp * D().zHp, maxHp: T.hp * D().zHp,
-    speed: T.speed * D().zSpeed * rand(0.88, 1.12), vx: 0, vy: 0, kx: 0, ky: 0,
+    type, T, x, y, r: T.r, scale: T.scale || 1, hp: T.hp * D().zHp * (S.zScale || 1), maxHp: T.hp * D().zHp * (S.zScale || 1),
+    speed: T.speed * D().zSpeed * (S.zSpeed || 1) * rand(0.88, 1.12), vx: 0, vy: 0, kx: 0, ky: 0,
     state: 'walk', anim: rand(0, 8), dir: 'down', hitFlash: 0, atkCd: rand(20, 60), throwCd: rand(60, 160),
     groanT: rand(120, 500), alert: false, deathT: 0, deathDir: 'side', stuck: 0,
   };

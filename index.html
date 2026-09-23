@@ -65,6 +65,7 @@
       <nav class="menu-list">
         <button data-act="continue" id="btnContinue"><span class="arrow"></span>CONTINUAR</button>
         <button data-act="levels"><span class="arrow"></span>NIVELES</button>
+        <button data-act="survival"><span class="arrow"></span>SUPERVIVENCIA</button>
         <button data-act="coop"><span class="arrow"></span>JUNTOS <small class="tagnew">ONLINE</small></button>
         <button data-act="settings"><span class="arrow"></span>AJUSTES</button>
         <button data-act="howto"><span class="arrow"></span>CONTROLES</button>
@@ -76,7 +77,8 @@
 
   <!-- SELECCION DE NIVEL -->
   <div class="overlay hidden" id="levelMenu">
-    <div class="screen-title">ELEGIR NOCHE</div>
+    <div class="screen-title" id="levelTitle">ELEGIR NOCHE</div>
+    <div class="diff-toggle modes" id="modeToggle"></div>
     <div class="diff-row"><span>DIFICULTAD</span><div class="diff-toggle" id="diffToggle"></div></div>
     <div class="diff-desc" id="diffDesc"></div>
     <div class="level-cards" id="levelCards"></div>
@@ -104,7 +106,7 @@
       </div>
       <div class="slots" id="lobbySlots"></div>
       <div class="lobby-levels" id="lobbyLevels"></div>
-      <div class="diff-row"><span>DIFICULTAD</span><div class="diff-toggle" id="lobbyDiff"></div></div>
+      <div class="diff-row"><span>MODO</span><div class="diff-toggle" id="lobbyMode"></div><span>DIFICULTAD</span><div class="diff-toggle" id="lobbyDiff"></div></div>
       <div class="lobby-chat">
         <div class="chat-log open" id="lobbyChatLog"></div>
         <input class="chat-input" id="lobbyChatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="ESCRIBI A LA SALA Y APRETA ENTER">

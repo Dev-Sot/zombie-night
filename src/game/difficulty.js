@@ -8,7 +8,7 @@
 export const DIFFS = {
   normal: {
     id: 'normal', name: 'NORMAL', color: '#e9e6df',
-    desc: 'La experiencia pensada para la historia.',
+    desc: 'El desafío equilibrado: tenso pero justo.',
     zHp: 1, zDmg: 1, zSpeed: 1, waves: 1, rate: 1, loot: 1, ammo: 1, price: 1, heal: 1, dark: 0, revive: 1, early: 0,
   },
   pesadilla: {

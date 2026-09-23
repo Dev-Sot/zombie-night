@@ -35,6 +35,7 @@ export function encodeSnapshot(events) {
     h: S.heli ? [r1(S.heli.x), r1(S.heli.y), r1(S.heli.t), S.heli.leaving ? 1 : 0] : null,
     l: S.world.lamps.map((l) => (l.lit ? 1 : 0)).join(''),
     b: S.boss ? S.boss.id : 0,
+    v: S.surv ? [S.surv.wave, S.surv.left, S.surv.total, S.surv.breather] : null,
     e: events,
   };
 }
@@ -82,6 +83,7 @@ export function applySnapshot(s, me) {
     marks.forEach((st, k) => { if (O.markers[k]) O.markers[k].state = st; });
   }
   [S.wave, S.kills, S.shots, S.hits] = s.w;
+  if (s.v && S.surv) [S.surv.wave, S.surv.left, S.surv.total, S.surv.breather] = s.v;
   if (s.h) {
     const [x, y, t, leaving] = s.h;
     S.heli = S.heli || { x, y };

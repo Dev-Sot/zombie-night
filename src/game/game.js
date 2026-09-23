@@ -4,7 +4,7 @@ import { canvas, ctx, sx, sy } from '../core/render.js';
 import { pixelText, textWidth } from '../core/pixelfont.js';
 import { localControl, anyPressed, endFrame } from '../core/input.js';
 import { sfx, sfxHook, playMusic, ambient, stopAllAmbient, setIntensity, setVolumes, audioReady } from '../core/audio.js';
-import { save, recordWin } from '../core/save.js';
+import { save, recordWin, recordSurvival } from '../core/save.js';
 import { buildWorld, drawGround, worldDrawables, moveEntity } from './world.js';
 import { settings as fxSettings, updateFx, drawDecals, drawParticles, drawFloaters, setWeather, updateWeather, drawWeather, drawLighting, drawCinema, light } from './fx.js';
 import { updateBullets, drawBullets, WEAPONS, ORDER } from './weapons.js';
@@ -17,6 +17,7 @@ import { LEVELS, SHOP_ITEMS } from './levels.js';
 import { room, broadcast, broadcastLobby, sendToHost, leaveRoom, setNetHandlers } from '../net/net.js';
 import { encodeSnapshot, applySnapshot, interpolate } from '../net/sync.js';
 import { pingTarget, addPing, updatePings, drawPings } from './social.js';
+import { survivalLevel, initSurvival, updateSurvival } from './survival.js';
 import * as ui from '../ui/ui.js';
 
 // Modos: menu (escena de fondo) · intro · play · shop · paused · outro · dead · results
@@ -32,6 +33,7 @@ function resetState() {
     zombies: [], bullets: [], projectiles: [], pickups: [], particles: [], decals: [], lights: [], floaters: [],
     players: [], t: 0, timeScale: 1, hitstop: 0, shake: 0, wave: 0, kills: 0, shots: 0, hits: 0,
     objective: null, boss: null, heli: null, surge: 0, spawnBoost: 1, over: false, menuMode: false, pings: [],
+    surv: null, zScale: 1, zSpeed: 1,
   });
   S.cam.cine = null;
   Object.assign(WV, { queue: 0, alertQueue: 0, timer: 0, next: 60 * 12 });
@@ -104,7 +106,8 @@ export function levelThumbs() {
 export function startLevel(id, opts = {}) {
   ui.fade(() => {
     resetState();
-    const L = LEVELS[id - 1];
+    const L = opts.survival ? survivalLevel(LEVELS[id - 1]) : LEVELS[id - 1];
+    G.survival = !!opts.survival;
     S.diff = DIFFS[opts.diff || save.diff] || DIFFS.normal;
     S.level = L;
     S.world = buildWorld(L);
@@ -127,11 +130,13 @@ export function startLevel(id, opts = {}) {
     const p = me();
     if (net.role === 'client') {
       S.objective = { steps: L.objective, i: 0, step: L.objective[0], count: 0, total: 1, done: [], markers: L.markers.map((m) => ({ ...m, state: 0 })) };
+      if (L.survival) initSurvival();
     } else {
       startObjectives(L);
+      if (L.survival) initSurvival();
       for (const w of L.weaponSpots || []) addPickup('weapon', w.x, w.y, { weapon: w.weapon, persist: true });
       // algunos zombies ya rondando el mapa (no alertados)
-      for (let i = 0; i < 5; i++) { const sp = pickSpawnPoint(); if (sp) spawnZombie(i === 4 ? 'runner' : 'walker', sp.x, sp.y); }
+      if (!L.survival) for (let i = 0; i < 5; i++) { const sp = pickSpawnPoint(); if (sp) spawnZombie(i === 4 ? 'runner' : 'walker', sp.x, sp.y); }
     }
     setWeather(L.weather);
     stopAllAmbient();
@@ -144,7 +149,7 @@ export function startLevel(id, opts = {}) {
     ui.hideOverlays();
     ui.buildHud(p);
     snapCamera(p.x, p.y);
-    if (!mp() && save.settings.cine && L.intro?.length) beginIntro(L, p);
+    if (!mp() && !L.survival && save.settings.cine && L.intro?.length) beginIntro(L, p);
     else {
       G.mode = 'play'; G.bars = 0; ui.setHud(true);
       levelBanner();
@@ -176,7 +181,8 @@ function endIntro() {
 
 function levelBanner() {
   const L = S.level, hard = S.diff.id !== 'normal';
-  ui.banner(`NOCHE ${L.id} · ${L.name.toUpperCase()}${hard ? ` · ${S.diff.name}` : ''}`, hard);
+  const head = L.survival ? 'SUPERVIVENCIA' : `NOCHE ${L.id}`;
+  ui.banner(`${head} · ${L.name.toUpperCase()}${hard ? ` · ${S.diff.name}` : ''}`, hard);
 }
 
 function beginOutro() {
@@ -243,9 +249,16 @@ function showDeath() {
   canvas.classList.add('dead');
   ui.setHud(false);
   ui.prompt(null);
-  const rows = stats().rows;
-  if (net.role === 'host') broadcast({ t: 'end', win: false, rows });
-  ui.showDeath(rows, net.role);
+  let rows = stats().rows, title = null;
+  if (S.level.survival) {
+    const key = survivalKey();
+    const isNew = recordSurvival(key, S.surv.wave);
+    rows = [['OLEADA', S.surv.wave], ['RECORD', `${save.survival[key] || 0}${isNew ? '  NUEVO' : ''}`], ...rows.filter(([k]) => k !== 'PRECISION')];
+    title = `CAYERON EN LA OLEADA ${S.surv.wave}`;
+    if (!mp()) title = `CAISTE EN LA OLEADA ${S.surv.wave}`;
+  }
+  if (net.role === 'host') broadcast({ t: 'end', win: false, rows, title, surv: S.level.survival ? [survivalKey(), S.surv.wave] : null });
+  ui.showDeath(rows, net.role, title);
 }
 
 // ---------------------------------------------------------------------------
@@ -262,10 +275,11 @@ export function resume() {
   G.mode = 'play';
   ui.hideOverlays();
 }
+const survivalKey = () => `${S.level.id}_${S.diff.id}`;
 export function restart() {
   if (net.role === 'client') return;
   if (net.role === 'host') return hostStart(S.level.id);
-  startLevel(S.level.id);
+  startLevel(S.level.id, { survival: S.level.survival });
 }
 export function nextLevel() {
   const id = Math.min(LEVELS.length, S.level.id + 1);
@@ -365,8 +379,9 @@ export function hostStart(level) {
   room.inGame = true; room.level = level;
   broadcastLobby();
   const roster = room.players.map(({ idx, name, id }) => ({ idx, name, id }));
-  broadcast({ t: 'start', level, diff: room.diff, roster: roster.map(({ idx, name }) => ({ idx, name })) });
-  startLevel(level, { roster, diff: room.diff });
+  const survival = room.mode === 'survival';
+  broadcast({ t: 'start', level, diff: room.diff, survival, roster: roster.map(({ idx, name }) => ({ idx, name })) });
+  startLevel(level, { roster, diff: room.diff, survival });
 }
 
 setNetHandlers({
@@ -429,7 +444,7 @@ function localPing(p) {
 
 function clientMsg(msg) {
   if (msg.t === 'chat') { ui.chatMessage(msg); sfx('chat'); return; }
-  if (msg.t === 'start') return startLevel(msg.level, { roster: msg.roster, diff: msg.diff });
+  if (msg.t === 'start') return startLevel(msg.level, { roster: msg.roster, diff: msg.diff, survival: msg.survival });
   if (msg.t === 'toLobby') return toLobby();
   if (!S.world || G.mode === 'menu') return;
   if (msg.t === 's') {
@@ -445,7 +460,7 @@ function clientMsg(msg) {
     ui.skipSubtitles();
     ui.setHud(false); ui.prompt(null);
     if (msg.win) { recordWin(msg.level, msg.rank, msg.key); ui.updateContinue(); ui.showResults(msg.rows, msg.rank, msg.hasNext, 'client'); }
-    else { canvas.classList.add('dead'); ui.showDeath(msg.rows, 'client'); }
+    else { if (msg.surv) recordSurvival(msg.surv[0], msg.surv[1]); canvas.classList.add('dead'); ui.showDeath(msg.rows, 'client', msg.title); }
   }
 }
 
@@ -541,7 +556,7 @@ function simulate(m) {
   updateRevives();
   updateObjectives();
   if (m === 'play' || OVERLAY_MODES.has(m)) {
-    if (S.players.some((p) => !p.dead && !p.gone)) updateWaves();
+    if (S.players.some((p) => !p.dead && !p.gone)) (S.level.survival ? updateSurvival : updateWaves)();
   }
   updateBullets();
   updateZombies();
@@ -751,6 +766,7 @@ function loop(now) {
   if (S.world) render();
   requestAnimationFrame(loop);
 }
+export function startSurvival(id) { startLevel(id, { survival: true }); }
 export function startLoop() { requestAnimationFrame(loop); }
 
 // en segundo plano el navegador frena requestAnimationFrame: el anfitrión

@@ -7,12 +7,14 @@ import { objectiveText } from '../game/objectives.js';
 import { room, cleanCode, MAX_PLAYERS } from '../net/net.js';
 import { TINT_CSS } from '../game/player.js';
 import { DIFFS, priceOf, bestKey } from '../game/difficulty.js';
+import { SURVIVAL_DESC } from '../game/survival.js';
 
 const $ = (id) => document.getElementById(id);
 const OVERLAYS = ['mainMenu', 'levelMenu', 'coopMenu', 'settingsMenu', 'howtoMenu', 'creditsMenu', 'pauseMenu', 'shopMenu', 'resultsMenu', 'deathMenu', 'loading'];
 let H = {};
 let backTo = 'mainMenu';
 let thumbs = {};
+let levelMode = 'story';
 export function setThumbs(t) { thumbs = t; }
 
 // Press Start 2P no trae mayúsculas acentuadas: se reemplazan por las simples
@@ -102,7 +104,8 @@ export function initUI(handlers) {
   document.querySelectorAll('.menu-list button').forEach((b) => b.addEventListener('click', () => {
     const act = b.dataset.act;
     if (act === 'continue') H.onPlayLevel(save.last || 1);
-    if (act === 'levels') { renderLevels(); show('levelMenu'); }
+    if (act === 'levels') { levelMode = 'story'; renderLevels(); show('levelMenu'); }
+    if (act === 'survival') { levelMode = 'survival'; renderLevels(); show('levelMenu'); }
     if (act === 'settings') { backTo = 'mainMenu'; show('settingsMenu'); }
     if (act === 'howto') show('howtoMenu');
     if (act === 'credits') show('creditsMenu');
@@ -157,12 +160,49 @@ function renderDiffToggle(box, current, onPick, enabled = true) {
   }
 }
 
+function renderToggle(box, options, current, onPick, enabled = true) {
+  box.innerHTML = '';
+  for (const [id, name] of options) {
+    const b = document.createElement('button');
+    b.className = `diff${current === id ? ' on' : ''}`;
+    b.textContent = name;
+    b.disabled = !enabled;
+    b.addEventListener('mouseenter', () => sfx('uiHover'));
+    b.addEventListener('click', () => { sfx('uiClick'); onPick(id); });
+    box.appendChild(b);
+  }
+}
+const MODES = [['story', 'HISTORIA'], ['survival', 'SUPERVIVENCIA']];
+
+function renderSurvivalCards(wrap) {
+  for (const L of LEVELS) {
+    const c = document.createElement('button');
+    c.className = 'card';
+    c.style.setProperty('--c', thumbs[L.id] ? `url(${thumbs[L.id]}) center/cover` : `linear-gradient(160deg, ${L.color}, #07070a)`);
+    const rn = save.survival[`${L.id}_normal`], rp = save.survival[`${L.id}_pesadilla`];
+    c.innerHTML = `
+      <div class="tag">${L.tag}</div>
+      <div class="bests">${rn ? `<span class="best">${rn}</span>` : ''}${rp ? `<span class="best p">${rp}</span>` : ''}</div>
+      <div class="num">SUPERVIVENCIA</div>
+      <div class="name">${pxHtml(L.name.toUpperCase())}</div>
+      <div class="desc">${SURVIVAL_DESC[L.id]}</div>
+      <div class="lockmsg go">RECORD: OLEADA ${save.survival[`${L.id}_${save.diff}`] || 0}</div>`;
+    c.addEventListener('mouseenter', () => sfx('uiHover'));
+    c.addEventListener('click', () => { sfx('uiClick'); H.onPlaySurvival(L.id); });
+    wrap.appendChild(c);
+  }
+}
+
 function renderLevels() {
   const wrap = $('levelCards');
+  renderToggle($('modeToggle'), MODES, levelMode, (id) => { levelMode = id; renderLevels(); });
+  $('levelTitle').textContent = levelMode === 'survival' ? 'SUPERVIVENCIA' : 'ELEGIR NOCHE';
+  wrap.classList.toggle('three', levelMode === 'survival');
   renderDiffToggle($('diffToggle'), save.diff, (id) => { save.diff = id; persist(); renderLevels(); });
   $('diffDesc').textContent = DIFFS[save.diff].desc;
   $('levelMenu').classList.toggle('nightmare', save.diff === 'pesadilla');
   wrap.innerHTML = '';
+  if (levelMode === 'survival') { renderSurvivalCards(wrap); return; }
   [...LEVELS, LEVEL4].forEach((L) => {
     const locked = L.id !== 4 && L.id > save.unlocked;
     const c = document.createElement('button');
@@ -209,7 +249,7 @@ export function buildHud(p) {
     $('hotbar').appendChild(s);
   });
   Object.keys(cache).forEach((k) => delete cache[k]);
-  set('hudLevel', 'innerHTML', pxHtml(`NOCHE ${S.level.id} · ${S.level.name.toUpperCase()}`) + (S.diff?.id === 'pesadilla' ? ' <span class="hard">· PESADILLA</span>' : ''));
+  set('hudLevel', 'innerHTML', pxHtml(`${S.level.survival ? 'SUPERVIVENCIA' : `NOCHE ${S.level.id}`} · ${S.level.name.toUpperCase()}`) + (S.diff?.id === 'pesadilla' ? ' <span class="hard">· PESADILLA</span>' : ''));
   updateHud(p);
 }
 
@@ -329,12 +369,12 @@ export function showResults(stats, rank, hasNext, role = null) {
   if (!role && !hasNext) $('resultsTitle').textContent = 'SOBREVIVISTE';
   show('resultsMenu');
 }
-export function showDeath(stats, role = null) {
+export function showDeath(stats, role = null, title = null) {
   $('deathStats').innerHTML = stats.map(([k, v]) => `<span>${pxHtml(k)}</span><span>${pxHtml(v)}</span>`).join('');
   $('btnRetry').classList.toggle('hidden', role === 'client');
   $('deathNote').classList.toggle('hidden', role !== 'client');
   $('btnDeathMenu').textContent = endLabel(role);
-  document.querySelector('#deathMenu .screen-title').textContent = role ? 'CAYO TODO EL EQUIPO' : 'TE ATRAPARON';
+  document.querySelector('#deathMenu .screen-title').textContent = title || (role ? 'CAYO TODO EL EQUIPO' : 'TE ATRAPARON');
   show('deathMenu');
 }
 export function pauseOptions(role) {
@@ -415,11 +455,12 @@ export function renderLobby() {
     b.className = `lvl${room.level === L.id ? ' on' : ''}`;
     b.disabled = !host;
     if (thumbs[L.id]) b.style.backgroundImage = `url(${thumbs[L.id]})`;
-    b.innerHTML = `<span>NOCHE ${L.id}</span><b>${pxHtml(L.name.toUpperCase())}</b>`;
+    b.innerHTML = `<span>${room.mode === 'survival' ? 'MAPA' : 'NOCHE'} ${L.id}</span><b>${pxHtml(L.name.toUpperCase())}</b>`;
     b.addEventListener('click', () => { sfx('uiClick'); H.onCoopLevel(L.id); });
     lv.appendChild(b);
   }
   renderDiffToggle($('lobbyDiff'), room.diff, (id) => H.onCoopDiff(id), host);
+  renderToggle($('lobbyMode'), MODES, room.mode, (id) => H.onCoopMode(id), host);
   $('btnStartCoop').classList.toggle('hidden', !host);
   $('lobbyWait').classList.toggle('hidden', host);
   $('btnStartCoop').textContent = room.players.length > 1 ? `EMPEZAR (${room.players.length} JUGADORES)` : 'EMPEZAR SOLO';

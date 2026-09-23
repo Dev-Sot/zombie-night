@@ -281,3 +281,7 @@ button{ font-family:inherit; }
 .lobby-chat .chat-log{ height:6.5em; overflow-y:auto; background:rgba(0,0,0,.35); border:1px solid var(--line); padding:.6em; display:flex; flex-direction:column; gap:.4em; font-size:.8em; }
 .lobby-chat .msg{ line-height:1.5; }
 .lobby-chat .chat-input{ border-color:rgba(255,255,255,.2); }
+
+/* modos en la selección */
+.diff-toggle.modes .diff{ padding:.9em 1.8em; }
+.level-cards.three{ grid-template-columns:repeat(3,1fr); width:75%; }

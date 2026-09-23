@@ -16,6 +16,15 @@ export function persist() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* storage bloqueado */ }
 }
 
+// récord de supervivencia por mapa y dificultad; devuelve true si es nuevo
+export function recordSurvival(key, wave) {
+  const prev = save.survival[key] || 0;
+  if (wave <= prev) return false;
+  save.survival[key] = wave;
+  persist();
+  return true;
+}
+
 const RANKS = ['C', 'B', 'A', 'S'];
 export function recordWin(id, rank, key = String(id)) {
   save.unlocked = Math.max(save.unlocked, id + 1);

@@ -24,6 +24,7 @@ await loadAll((p) => ui.setLoading(p, `CARGANDO  ${Math.round(p * 100)}%`));
 
 ui.initUI({
   onPlayLevel: (id) => game.startLevel(id),
+  onPlaySurvival: (id) => game.startSurvival(id),
   onSettings: (st) => game.settingsChanged(st),
   onResume: () => game.resume(),
   onPause: () => game.pause(),
@@ -39,6 +40,7 @@ ui.initUI({
   onCoopLevel: (id) => { if (room.role === 'host') { room.level = id; broadcastLobby(); } },
   onCoopStart: () => { if (room.role === 'host') game.hostStart(room.level); },
   onChat: (text) => game.sendChat(text),
+  onCoopMode: (id) => { if (room.role === 'host') { room.mode = id; broadcastLobby(); } },
   onCoopDiff: (id) => { if (room.role === 'host') { room.diff = id; broadcastLobby(); } },
 });
 ui.setThumbs(game.levelThumbs());
