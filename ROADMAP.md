@@ -42,34 +42,47 @@ mapa vacío con props sueltos.
       pausa (tecla ESC o botón), pantalla de ajustes (sonido + recordatorio
       de controles) y pantalla de créditos. La selección de nivel pasó a
       ser una sub-pantalla de "JUGAR", con botón VOLVER.
-- [ ] Mapa real con calles/edificios en vez de props sueltos sobre una
-      arena vacía — el pack de TheLazyStone trae 550+ edificios sin usar
-      todavía. Decidido: **recorrido lineal por calles** (no arena abierta),
-      ver sección "Visión ampliada" abajo.
+- [x] **Nivel 1 rehecho como calle lineal**: se reemplazó la arena abierta
+      por un pasillo recto de 2400px con edificios reales a los dos lados
+      (fachada con textura tileable + ventanas/puertas/toldos/antenas
+      puestas a intervalos), árboles pegados a las fachadas y autos
+      estacionados — todo del pack de TheLazyStone. El jugador y los
+      zombies quedan encerrados entre los edificios (clamp de posición en
+      X, especie de colisión básica de corredor — todavía no es colisión
+      real contra props individuales). Los bidones de combustible y el
+      generador se reubicaron a lo largo de la calle. Las oleadas ahora
+      aparecen adelante/atrás del jugador (no en los bordes de una arena
+      gigante). Verificado en navegador: el HUD ya no se cruza con props
+      (ese problema desaparece al no tener props sueltos), la cámara sigue
+      bien en vertical, y se pudo completar el nivel disparando en el
+      camino.
 - [ ] Música ambiental (evaluar opciones con licencia clara, no de YouTube
       directo — ver notas de assets).
+
+**Pendiente de que el usuario lo juegue:** el pasillo es más angosto que la
+arena vieja (228px de ancho para moverse), así que hay menos espacio para
+esquivar. Un bot de prueba automatizado murió varias veces sin pelear bien
+(no es representativo de un jugador real esquivando), así que la dificultad
+real hay que juzgarla jugándolo — si se siente injusto, ajustar cantidad de
+zombies por oleada o el ancho de la calle (`BUILD_W` en `index.html`).
 
 ## Visión ampliada (pedida por el usuario, referencias: capturas de
 Eastward/mapa boscoso, menú de *Heat Guardian*, menú de *Obsidian* y HUD de
 un shooter top-down con barras) — pendiente de romper en fases concretas:
-- **Mapa lineal de Nivel 1**: el jugador avanza por una calle principal de
-  la ciudad donde empezó el apagón (casas, edificios, una tienda) en vez de
-  una arena abierta. Es un cambio de arquitectura más grande que solo
-  agregar sprites — hay que rediseñar cómo se genera/recorre el mundo.
+- ~~Mapa lineal de Nivel 1~~ — hecho, ver Fase 1.5 arriba.
 - **Economía + tienda**: monedas que sueltan los zombies o se encuentran en
   el mapa; una tienda en el Nivel 1 (interactuar con **E**) para comprar
-  armas/objetos.
+  armas/objetos. Ahora que existe la calle, ya hay dónde poner la tienda —
+  siguiente candidato natural.
 - **Inventario real**: más allá del ícono de arma actual — múltiples armas,
   cambiar entre ellas, quizás objetos consumibles.
-- **Colisión con props/edificios** (cobertura táctica, y que los edificios
-  bloqueen el paso — necesario para que el mapa lineal funcione).
-- **Más zombies / dificultad**: oleadas más grandes, quizás más tipos.
+- **Colisión de verdad contra props individuales** (autos/árboles como
+  cobertura) — hoy solo existe el límite de la calle (no chocar contra
+  edificios), no colisión objeto por objeto.
+- **Más zombies / dificultad**: ajustar según feedback de juego real (ver
+  nota de dificultad arriba).
 - **Pensado para multijugador a futuro** (chat, etc. — Fase 4) — mientras
   tanto, priorizar que el modo un jugador ya sea entretenido por sí solo.
-
-Esto es demasiado para una sola fase — se va a partir en sub-fases cuando
-se retome (siguiente: mapa lineal, ya que la tienda/inventario dependen de
-que exista un lugar en el mapa para ponerlos).
 
 ### Decisión de assets (para no perder coherencia visual mezclando packs)
 El usuario compartió varios packs de itch.io para evaluar. Veredicto:
@@ -101,14 +114,13 @@ El usuario compartió varios packs de itch.io para evaluar. Veredicto:
       online después si aplica).
 
 ## Mecánicas adicionales (se evalúan según cómo evolucione el nivel 1)
-- [ ] Colisión con props (cobertura táctica).
+- [ ] Colisión contra props individuales (autos/árboles como cobertura).
 - [ ] Segunda arma (escopeta / cuchillo) — el asset pack ya trae los sprites,
       falta la lógica de cambio de arma (teclas 1/2/3).
 - [ ] Perks entre oleadas.
 - [ ] Controles táctiles para móvil.
-- [ ] Usar el resto del tileset sin explotar todavía (calles, edificios,
-      gasolinera, granja) para darle más variedad al mapa — pendiente para
-      cuando se trabaje el Nivel 2.
+- [ ] Usar más piezas del pack sin explotar todavía (gasolinera, granja,
+      más variantes de edificio) para el Nivel 2.
 
 ---
 

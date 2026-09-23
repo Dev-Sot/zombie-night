@@ -220,8 +220,8 @@
       La luna nueva dejó el barrio a oscuras justo cuando cayó la red
       eléctrica. Minutos después, los que caminaban por la calle empezaron a
       atacar a quien se cruzara.<br><br>
-      Si enciendes el generador de la vieja estación, las farolas volverán y
-      podrás salir de esta cuadra con vida.
+      Si enciendes el generador de la vieja estación, al final de la calle,
+      las farolas volverán y podrás salir de esta cuadra con vida.
       <b>Busca 3 bidones de combustible</b> sin que te alcancen.
     </div>
     <div class="sub">
@@ -279,13 +279,20 @@ const SPRITE_FILES={
   pickup_fuel:'assets/pickup_fuel.png',
   pickup_health:'assets/pickup_health.png',
   pickup_ammo:'assets/pickup_ammo.png',
-  prop_car:'assets/prop_car.png',
-  prop_bush:'assets/prop_bush.png',
-  prop_fence:'assets/prop_fence.png',
-  prop_cone:'assets/prop_cone.png',
-  prop_sign:'assets/prop_sign.png',
   tile_ground:'assets/tile_ground.png',
-  slot_fuel:'assets/slot_fuel.png'
+  slot_fuel:'assets/slot_fuel.png',
+  p3_wall:'assets/p3_wall.png',
+  p3_window:'assets/p3_window.png',
+  p3_door:'assets/p3_door.png',
+  p3_awning_blue:'assets/p3_awning_blue.png',
+  p3_awning_orange:'assets/p3_awning_orange.png',
+  p3_vent:'assets/p3_vent.png',
+  p3_antenna:'assets/p3_antenna.png',
+  p3_tree1:'assets/p3_tree1.png',
+  p3_tree2:'assets/p3_tree2.png',
+  p3_car_red:'assets/p3_car_red.png',
+  p3_car_gray:'assets/p3_car_gray.png',
+  p3_car_scrap:'assets/p3_car_scrap.png'
 };
 Object.keys(ENTITY_FRAMES).forEach(base=>{
   DIRS.forEach(dir=>{ SPRITE_FILES[base+'_'+dir]='assets/p2_'+base+'_'+dir+'.png'; });
@@ -444,29 +451,50 @@ let bestWave=1;
 try{ const v=localStorage.getItem('nsl_bestWave'); if(v) bestWave=parseInt(v,10)||1; }catch(e){}
 
 // ---------------- world ----------------
-const ARENA_W=1100, ARENA_H=760;
+// Nivel 1 es una calle recta (no una arena abierta): ARENA_W == GW así que
+// la cámara nunca se mueve en X, solo se recorre en Y (de abajo, donde
+// arranca el apagón, hacia arriba, donde está el generador).
+const ARENA_W=GW, ARENA_H=2400;
+const BUILD_W=70; // ancho de cada edificio a los lados
+const WALK_MIN_X=BUILD_W+8, WALK_MAX_X=ARENA_W-BUILD_W-8;
+const PLAYER_START={x:ARENA_W/2, y:ARENA_H-140};
 let camX=0, camY=0, shake=0;
 
+// farolas regulares a lo largo de la calle, alternando de vereda
 const lamps=[];
-for(let i=0;i<9;i++) lamps.push({x:80+Math.random()*(ARENA_W-160), y:80+Math.random()*(ARENA_H-160), r:75+Math.random()*22});
-
-const PROP_TYPES=['car','crate','bush','fence','cone','sign'];
-const PROP_WEIGHTS=[0.12,0.12,0.24,0.16,0.18,0.18];
-function pickPropType(){
-  const r=Math.random(); let acc=0;
-  for(let i=0;i<PROP_TYPES.length;i++){ acc+=PROP_WEIGHTS[i]; if(r<acc) return PROP_TYPES[i]; }
-  return PROP_TYPES[PROP_TYPES.length-1];
+for(let y=150, i=0; y<ARENA_H-150; y+=300, i++){
+  lamps.push({x: i%2===0 ? WALK_MIN_X+14 : WALK_MAX_X-14, y, r:78+Math.random()*14});
 }
-const props=[]; // decorative wrecks/clutter
-for(let i=0;i<26;i++){
-  props.push({x:Math.random()*ARENA_W, y:Math.random()*ARENA_H, type:pickPropType(), scale:0.9+Math.random()*0.4, flip:Math.random()<0.5});
+
+// decoración de fachada (ventanas/puertas/toldos/antenas) a intervalos fijos
+const DECOR_LEFT=['p3_window','p3_window','p3_door','p3_awning_blue','p3_vent','p3_antenna'];
+const DECOR_RIGHT=['p3_window','p3_window','p3_door','p3_awning_orange','p3_vent','p3_antenna'];
+const buildingDecor=[];
+for(let y=100; y<ARENA_H-100; y+=140+Math.random()*40){
+  buildingDecor.push({x:8, y, sprite:DECOR_LEFT[Math.floor(Math.random()*DECOR_LEFT.length)]});
+  buildingDecor.push({x:ARENA_W-BUILD_W+8, y:y+50, sprite:DECOR_RIGHT[Math.floor(Math.random()*DECOR_RIGHT.length)]});
+}
+
+// árboles pegados a las fachadas + autos estacionados en la calle
+const TREE_TYPES=['p3_tree1','p3_tree2'];
+const CAR_TYPES=['p3_car_red','p3_car_gray','p3_car_scrap'];
+const props=[];
+for(let y=120; y<ARENA_H-120; y+=170+Math.random()*70){
+  props.push({x:BUILD_W-16+Math.random()*8, y, sprite:TREE_TYPES[Math.floor(Math.random()*2)]});
+  if(Math.random()<0.75) props.push({x:ARENA_W-BUILD_W+8+Math.random()*8, y:y+45, sprite:TREE_TYPES[Math.floor(Math.random()*2)]});
+}
+for(let i=0;i<7;i++){
+  const y=220+Math.random()*(ARENA_H-440);
+  const leftSide=Math.random()<0.5;
+  const x=leftSide ? WALK_MIN_X+10+Math.random()*8 : WALK_MAX_X-30-Math.random()*8;
+  props.push({x,y, sprite:CAR_TYPES[Math.floor(Math.random()*CAR_TYPES.length)]});
 }
 
 function worldToScreen(x,y){ return [x-camX, y-camY]; }
 
 // ---------------- player ----------------
 const player={
-  x:ARENA_W/2, y:ARENA_H/2, r:6, speed:1.55, hp:100, maxHp:100,
+  x:PLAYER_START.x, y:PLAYER_START.y, r:6, speed:1.55, hp:100, maxHp:100,
   angle:0, walk:0, mag:8, magSize:8, reserve:32, reloading:false, reloadT:0,
   fireCd:0, hurtFlash:0, invuln:0, dead:false, lightOn:true
 };
@@ -480,8 +508,10 @@ let wave=0, killCount=0, spawnQueue=0, spawnTimer=0, waveClearT=0, waveActive=fa
 let waveBannerT=0;
 
 // ---------------- level 1 objective: find fuel, power the generator ----------------
-const FUEL_SPOTS=[{x:150,y:140},{x:950,y:180},{x:550,y:640}];
-const GENERATOR={x:1000,y:600,r:14};
+// repartidos a lo largo de la calle: el jugador arranca cerca de ARENA_H y
+// avanza hacia y chico, donde está el generador (final de la cuadra).
+const FUEL_SPOTS=[{x:110,y:1850},{x:270,y:1300},{x:120,y:750}];
+const GENERATOR={x:ARENA_W/2,y:180,r:14};
 let fuel=[], fuelCollected=0, genActive=false, genReached=false;
 let finalSurge=false, surgeKillsLeft=0, surgeSpawnLeft=0, surgeSpawnTimer=0, levelWon=false;
 
@@ -520,7 +550,7 @@ function updateHearts(hp,maxHp){
 }
 
 function resetGame(){
-  player.x=ARENA_W/2; player.y=ARENA_H/2; player.hp=100; player.mag=player.magSize; player.reserve=32;
+  player.x=PLAYER_START.x; player.y=PLAYER_START.y; player.hp=100; player.mag=player.magSize; player.reserve=32;
   player.reloading=false; player.reloadT=0; player.fireCd=0; player.invuln=0; player.dead=false; player.lightOn=true;
   zombies=[]; bullets=[]; particles=[]; pickups=[];
   wave=0; killCount=0; t=0;
@@ -558,12 +588,11 @@ function pickZombieType(){
 function spawnZombie(){
   const type=pickZombieType();
   const cfg=ZTYPES[type];
-  // spawn at arena edge, random side
-  let x,y; const side=Math.floor(Math.random()*4);
-  if(side===0){ x=Math.random()*ARENA_W; y=-20; }
-  else if(side===1){ x=ARENA_W+20; y=Math.random()*ARENA_H; }
-  else if(side===2){ x=Math.random()*ARENA_W; y=ARENA_H+20; }
-  else { x=-20; y=Math.random()*ARENA_H; }
+  // calle angosta: aparecen justo fuera de pantalla, adelante o atrás del jugador
+  const x=WALK_MIN_X+8+Math.random()*(WALK_MAX_X-WALK_MIN_X-16);
+  const ahead=Math.random()<0.55;
+  const rawY = ahead ? player.y-GH/2-30-Math.random()*40 : player.y+GH/2+30+Math.random()*40;
+  const y=Math.max(20, Math.min(ARENA_H-20, rawY));
   zombies.push({
     x,y,type, hp:cfg.hp, maxHp:cfg.hp, speed:cfg.speed*(0.85+Math.random()*0.3), dmg:cfg.dmg, r:cfg.r,
     angle:0, walk:Math.random()*10, hitFlash:0, state:'alive', deathT:0, hitCd:0
@@ -756,7 +785,7 @@ function update(){
   if(keys['KeyD']||keys['ArrowRight']) mx+=1;
   const len=Math.hypot(mx,my);
   if(len>0){ mx/=len; my/=len; player.walk+=0.22; }
-  player.x=Math.max(player.r, Math.min(ARENA_W-player.r, player.x+mx*player.speed));
+  player.x=Math.max(WALK_MIN_X, Math.min(WALK_MAX_X, player.x+mx*player.speed));
   player.y=Math.max(player.r, Math.min(ARENA_H-player.r, player.y+my*player.speed));
 
   // camera
@@ -865,6 +894,8 @@ function update(){
     const mvx=(dx/d)+sx*0.5, mvy=(dy/d)+sy*0.5;
     const mlen=Math.hypot(mvx,mvy)||1;
     z.x+=(mvx/mlen)*z.speed; z.y+=(mvy/mlen)*z.speed;
+    z.x=Math.max(WALK_MIN_X, Math.min(WALK_MAX_X, z.x));
+    z.y=Math.max(10, Math.min(ARENA_H-10, z.y));
     z.walk+=z.speed*0.15;
     if(z.hitFlash>0) z.hitFlash--;
     if(z.hitCd>0) z.hitCd--;
@@ -953,33 +984,37 @@ function drawGround(){
     ctx.fillStyle='#171a16';
     ctx.fillRect(0,0,GW,GH);
   }
-  // arena border
-  const [bx,by]=worldToScreen(0,0);
-  ctx.strokeStyle='#3a2f22'; ctx.lineWidth=3;
-  ctx.strokeRect(bx,by,ARENA_W,ARENA_H);
 }
 
-const PROP_SPRITE={ car:'prop_car', bush:'prop_bush', fence:'prop_fence', cone:'prop_cone', sign:'prop_sign' };
+let wallPattern=null;
+function drawBuildings(){
+  const img=SPRITES.p3_wall;
+  if(img && img.naturalWidth){
+    if(!wallPattern) wallPattern=ctx.createPattern(img,'repeat');
+    ctx.save();
+    ctx.translate(0,-(camY%16));
+    ctx.fillStyle=wallPattern;
+    ctx.fillRect(0,0,BUILD_W,GH+16);
+    ctx.fillRect(ARENA_W-BUILD_W,0,BUILD_W,GH+16);
+    ctx.restore();
+  } else {
+    pxRect(0,0,BUILD_W,GH,'#6b5f58');
+    pxRect(ARENA_W-BUILD_W,0,BUILD_W,GH,'#6b5f58');
+  }
+  buildingDecor.forEach(d=>{
+    const [sx,sy]=worldToScreen(d.x,d.y);
+    if(sy<-40||sy>GH+40) return;
+    const img=SPRITES[d.sprite];
+    if(img && img.naturalWidth) ctx.drawImage(img, sx, sy, img.naturalWidth, img.naturalHeight);
+  });
+}
+
 function drawProps(){
   props.forEach(p=>{
     const [sx,sy]=worldToScreen(p.x,p.y);
-    if(sx<-40||sy<-40||sx>GW+40||sy>GH+40) return;
-    if(p.type==='crate'){
-      const w=16*p.scale, h=12*p.scale;
-      pxRect(sx,sy,w,h,'#4a3a28');
-      pxRect(sx+1,sy+1,w-2,2,'#5f4b34');
-      return;
-    }
-    const img=SPRITES[PROP_SPRITE[p.type]];
-    if(!img || !img.naturalWidth) return;
-    const dw=img.naturalWidth*p.scale, dh=img.naturalHeight*p.scale;
-    if(p.flip){
-      ctx.save(); ctx.translate(sx+dw,sy); ctx.scale(-1,1);
-      ctx.drawImage(img,0,0,dw,dh);
-      ctx.restore();
-    } else {
-      ctx.drawImage(img, sx,sy,dw,dh);
-    }
+    if(sy<-50||sy>GH+50) return;
+    const img=SPRITES[p.sprite];
+    if(img && img.naturalWidth) ctx.drawImage(img, sx, sy, img.naturalWidth, img.naturalHeight);
   });
 }
 
@@ -1145,6 +1180,7 @@ function draw(){
     ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
   }
   drawGround();
+  drawBuildings();
   drawProps();
   drawLamps();
   drawGenerator();
@@ -1162,8 +1198,13 @@ function draw(){
 }
 
 function drawIdle(){
+  // el loop de juego no corre en los menús, así que la cámara no se sigue
+  // actualizando sola — la centramos a mano en la posición idle del jugador.
+  camX = Math.max(0, Math.min(ARENA_W-GW, player.x-GW/2));
+  camY = Math.max(0, Math.min(ARENA_H-GH, player.y-GH/2));
   ctx.save();
   drawGround();
+  drawBuildings();
   drawProps();
   drawLamps();
   player.walk+=0.05;
