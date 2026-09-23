@@ -7,6 +7,8 @@ import { blood, splat, float, shake, burst } from './fx.js';
 import { hurtPlayer } from './player.js';
 import { dropLoot } from './pickups.js';
 
+const D = () => S.diff || { zHp: 1, zDmg: 1, zSpeed: 1, loot: 1 };
+
 export const ZTYPES = {
   walker: { sprite: 'walker', hp: 46, speed: 0.55, dmg: 10, r: 6, coin: 1 },
   runner: { sprite: 'runner', hp: 24, speed: 1.25, dmg: 7, r: 5, coin: 1 },
@@ -21,8 +23,8 @@ export function spawnZombie(type, x, y) {
   const T = ZTYPES[type];
   const z = {
     id: nextId++,
-    type, T, x, y, r: T.r, scale: T.scale || 1, hp: T.hp, maxHp: T.hp,
-    speed: T.speed * rand(0.88, 1.12), vx: 0, vy: 0, kx: 0, ky: 0,
+    type, T, x, y, r: T.r, scale: T.scale || 1, hp: T.hp * D().zHp, maxHp: T.hp * D().zHp,
+    speed: T.speed * D().zSpeed * rand(0.88, 1.12), vx: 0, vy: 0, kx: 0, ky: 0,
     state: 'walk', anim: rand(0, 8), dir: 'down', hitFlash: 0, atkCd: rand(20, 60), throwCd: rand(60, 160),
     groanT: rand(120, 500), alert: false, deathT: 0, deathDir: 'side', stuck: 0,
   };
@@ -68,7 +70,7 @@ function killZombie(z, angle, by) {
   else if (z.type === 'brute') { shake(5); S.hitstop = 3; }
   const coins = z.T.coin;
   if (by) { by.coins += coins; float(z.x, z.y - 18 * z.scale, `+${coins}`); bus.emit('coins'); }
-  dropLoot(z.x, z.y, z.T.boss ? 1 : 0.18);
+  dropLoot(z.x, z.y, z.T.boss ? 1 : 0.18 * D().loot);
   bus.emit('kill', z);
 }
 
@@ -108,7 +110,7 @@ export function updateZombies() {
       z.anim += 0.22;
       if (!z.hitDone && z.anim >= frames * 0.55) {
         z.hitDone = true;
-        if (d < z.r + p.r + 10 * z.scale) hurtPlayer(p, z.T.dmg, Math.atan2(dy, dx));
+        if (d < z.r + p.r + 10 * z.scale) hurtPlayer(p, Math.round(z.T.dmg * D().zDmg), Math.atan2(dy, dx));
       }
       if (z.anim >= frames) { z.state = 'walk'; z.atkCd = z.T.boss ? 40 : 55; }
       continue;
@@ -118,7 +120,7 @@ export function updateZombies() {
       if (!z.hitDone && z.anim >= 5) {
         z.hitDone = true;
         const a = Math.atan2(p.y - 6 - (z.y - 12), p.x - z.x);
-        S.projectiles.push({ x: z.x, y: z.y - 12, vx: Math.cos(a) * 2.6, vy: Math.sin(a) * 2.6, life: 110, spin: 0, dmg: z.T.dmg + 3 });
+        S.projectiles.push({ x: z.x, y: z.y - 12, vx: Math.cos(a) * 2.6, vy: Math.sin(a) * 2.6, life: 110, spin: 0, dmg: Math.round((z.T.dmg + 3) * D().zDmg) });
         sfx('axe', 0.8);
       }
       if (z.anim >= ZOMBIE_FRAMES.thrower.attack) { z.state = 'walk'; z.throwCd = rand(150, 220); }

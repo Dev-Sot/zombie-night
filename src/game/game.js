@@ -9,7 +9,8 @@ import { buildWorld, drawGround, worldDrawables, moveEntity } from './world.js';
 import { settings as fxSettings, updateFx, drawDecals, drawParticles, drawFloaters, setWeather, updateWeather, drawWeather, drawLighting, drawCinema, light } from './fx.js';
 import { updateBullets, drawBullets, WEAPONS, ORDER } from './weapons.js';
 import { spawnZombie, updateZombies, zombieDrawables, pickSpawnPoint } from './zombies.js';
-import { updatePickups, drawPickups, pickupLights } from './pickups.js';
+import { updatePickups, drawPickups, pickupLights, addPickup } from './pickups.js';
+import { DIFFS, priceOf, bestKey } from './difficulty.js';
 import { createPlayer, updatePlayer, playerDrawables, updateRevives } from './player.js';
 import { startObjectives, updateObjectives, objectiveTarget, interactHint, drawGroundMarkers, markerDrawables, markerLights } from './objectives.js';
 import { LEVELS, SHOP_ITEMS } from './levels.js';
@@ -57,6 +58,7 @@ export function menuScene() {
   resetState();
   net.role = null; net.me = 0;
   const L = LEVELS[0];
+  S.diff = DIFFS.normal;
   S.level = { ...L, darkness: 0.8 };
   S.world = buildWorld(L);
   S.world.lamps.forEach((l) => { l.lit = true; });
@@ -102,6 +104,7 @@ export function startLevel(id, opts = {}) {
   ui.fade(() => {
     resetState();
     const L = LEVELS[id - 1];
+    S.diff = DIFFS[opts.diff || save.diff] || DIFFS.normal;
     S.level = L;
     S.world = buildWorld(L);
     S.world.lamps.forEach((l) => { l.lit = !L.lampsOff; });
@@ -125,6 +128,7 @@ export function startLevel(id, opts = {}) {
       S.objective = { steps: L.objective, i: 0, step: L.objective[0], count: 0, total: 1, done: [], markers: L.markers.map((m) => ({ ...m, state: 0 })) };
     } else {
       startObjectives(L);
+      for (const w of L.weaponSpots || []) addPickup('weapon', w.x, w.y, { weapon: w.weapon, persist: true });
       // algunos zombies ya rondando el mapa (no alertados)
       for (let i = 0; i < 5; i++) { const sp = pickSpawnPoint(); if (sp) spawnZombie(i === 4 ? 'runner' : 'walker', sp.x, sp.y); }
     }
@@ -142,7 +146,7 @@ export function startLevel(id, opts = {}) {
     if (!mp() && save.settings.cine && L.intro?.length) beginIntro(L, p);
     else {
       G.mode = 'play'; G.bars = 0; ui.setHud(true);
-      ui.banner(`NOCHE ${L.id} · ${L.name.toUpperCase()}`);
+      levelBanner();
       if (mp()) ui.subtitles(L.intro || [], 1400);
     }
   });
@@ -166,7 +170,12 @@ function endIntro() {
   ui.skipHint(false);
   G.mode = 'play';
   ui.setHud(true);
-  ui.banner(`NOCHE ${S.level.id} · ${S.level.name.toUpperCase()}`);
+  levelBanner();
+}
+
+function levelBanner() {
+  const L = S.level, hard = S.diff.id !== 'normal';
+  ui.banner(`NOCHE ${L.id} · ${L.name.toUpperCase()}${hard ? ` · ${S.diff.name}` : ''}`, hard);
 }
 
 function beginOutro() {
@@ -199,6 +208,7 @@ function stats() {
   return {
     secs, dmg,
     rows: [
+      ['DIFICULTAD', S.diff.name],
       ['TIEMPO', `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`],
       ['BAJAS', S.kills],
       ['PRECISION', S.shots ? `${Math.round(S.hits / S.shots * 100)}%` : '-'],
@@ -217,11 +227,12 @@ function showResults() {
   if (st.dmg < 50) pts++;
   if (S.shots && S.hits / S.shots > 0.45) pts++;
   const rank = ['C', 'B', 'B', 'A', 'S'][pts];
-  recordWin(L.id, rank);
+  const key = bestKey(L.id, S.diff.id);
+  recordWin(L.id, rank, key);
   ui.updateContinue();
   G.mode = 'results';
   const hasNext = L.id < LEVELS.length;
-  if (net.role === 'host') broadcast({ t: 'end', win: true, rows: st.rows, rank, level: L.id, hasNext });
+  if (net.role === 'host') broadcast({ t: 'end', win: true, rows: st.rows, rank, level: L.id, key, hasNext });
   ui.showResults(st.rows, rank, hasNext, net.role);
 }
 
@@ -294,7 +305,8 @@ function openShop(p) {
 
 export function buy(k, p = me()) {
   const it = SHOP_ITEMS[k], inv = p.inv;
-  if (!it || p.coins < it.price) return false;
+  const price = priceOf(it, S.diff);
+  if (!it || p.coins < price) return false;
   if (it.weapon) {
     if (inv.weapons.includes(it.weapon)) return false;
     inv.weapons.push(it.weapon);
@@ -309,7 +321,7 @@ export function buy(k, p = me()) {
   } else {
     inv[k]++;
   }
-  p.coins -= it.price;
+  p.coins -= price;
   if (p === me()) {
     sfx(it.weapon ? 'weapon' : 'item'); sfx('coin');
     ui.updateHud(p);
@@ -352,8 +364,8 @@ export function hostStart(level) {
   room.inGame = true; room.level = level;
   broadcastLobby();
   const roster = room.players.map(({ idx, name, id }) => ({ idx, name, id }));
-  broadcast({ t: 'start', level, roster: roster.map(({ idx, name }) => ({ idx, name })) });
-  startLevel(level, { roster });
+  broadcast({ t: 'start', level, diff: room.diff, roster: roster.map(({ idx, name }) => ({ idx, name })) });
+  startLevel(level, { roster, diff: room.diff });
 }
 
 setNetHandlers({
@@ -382,7 +394,7 @@ function hostMsg(from, msg) {
 }
 
 function clientMsg(msg) {
-  if (msg.t === 'start') return startLevel(msg.level, { roster: msg.roster });
+  if (msg.t === 'start') return startLevel(msg.level, { roster: msg.roster, diff: msg.diff });
   if (msg.t === 'toLobby') return toLobby();
   if (!S.world || G.mode === 'menu') return;
   if (msg.t === 's') {
@@ -395,7 +407,7 @@ function clientMsg(msg) {
     G.mode = 'results';
     ui.skipSubtitles();
     ui.setHud(false); ui.prompt(null);
-    if (msg.win) { recordWin(msg.level, msg.rank); ui.updateContinue(); ui.showResults(msg.rows, msg.rank, msg.hasNext, 'client'); }
+    if (msg.win) { recordWin(msg.level, msg.rank, msg.key); ui.updateContinue(); ui.showResults(msg.rows, msg.rank, msg.hasNext, 'client'); }
     else { canvas.classList.add('dead'); ui.showDeath(msg.rows, 'client'); }
   }
 }
@@ -404,7 +416,7 @@ function clientMsg(msg) {
 // Oleadas
 // ---------------------------------------------------------------------------
 function pickType(mix) {
-  const ok = mix.filter(([, , from]) => S.wave >= from);
+  const ok = mix.filter(([, , from]) => S.wave + S.diff.early >= from);
   let r = Math.random() * ok.reduce((a, [, w]) => a + w, 0);
   for (const [t, w] of ok) { r -= w; if (r <= 0) return t; }
   return 'walker';
@@ -413,11 +425,11 @@ function pickType(mix) {
 function updateWaves() {
   const L = S.level, cfg = L.waves;
   const team = S.players.filter((p) => !p.gone).length;
-  if (S.surge) { const n = Math.round(S.surge * (1 + 0.35 * (team - 1))); WV.queue += n; WV.alertQueue += n; S.surge = 0; WV.timer = 0; }
+  if (S.surge) { const n = Math.round(S.surge * (1 + 0.35 * (team - 1)) * S.diff.waves); WV.queue += n; WV.alertQueue += n; S.surge = 0; WV.timer = 0; }
   const alive = S.zombies.filter((z) => z.state !== 'dying' && z.state !== 'dead').length;
   if (--WV.next <= 0) {
     S.wave++;
-    WV.queue += Math.round(Math.min(cfg.cap, cfg.first + cfg.grow * (S.wave - 1)) * (1 + 0.4 * (team - 1)));
+    WV.queue += Math.round(Math.min(cfg.cap, cfg.first + cfg.grow * (S.wave - 1)) * (1 + 0.4 * (team - 1)) * S.diff.waves);
     WV.next = 60 * 40;
     bus.emit('banner', { text: `OLEADA ${S.wave}`, danger: S.wave > 2 });
     sfx('alarm', 0.5);
@@ -431,7 +443,7 @@ function updateWaves() {
       if (WV.alertQueue > 0) { WV.alertQueue--; z.alert = true; } else z.alert = Math.random() < 0.5;
       WV.queue--;
     }
-    WV.timer = cfg.rate / (S.spawnBoost || 1) / (1 + 0.25 * (team - 1)) * rand(0.5, 1.2);
+    WV.timer = cfg.rate / (S.spawnBoost || 1) / (1 + 0.25 * (team - 1)) / S.diff.rate * rand(0.5, 1.2);
   }
 }
 

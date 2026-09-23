@@ -11,7 +11,7 @@ export const ZOMBIE_FRAMES = {
 
 const ENV = [
   'ground_grass', 'ground_deadgrass', 'ground_cobble', 'ground_sidewalk', 'ground_asphalt', 'ground_zebra', 'ground_wood',
-  'wall_beige', 'wall_gray', 'wall_dark', 'wall_white', 'roof_gray', 'roof_red', 'fence',
+  'wall_beige', 'wall_gray', 'wall_dark', 'wall_white', 'roof_gray', 'roof_red', 'fence', 'fence_b', 'fence_c',
   'window', 'window_broken', 'window_boarded', 'window_beige', 'door', 'door_boarded', 'door_beige',
   'awning_blue', 'awning_orange', 'antenna', 'vent', 'hvac', 'posters',
   'streetlight', 'stop_sign', 'hydrant', 'barrel_red', 'barrel_blue', 'trash_can', 'garbage_bin', 'trash_bag',

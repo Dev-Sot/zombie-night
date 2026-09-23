@@ -71,6 +71,8 @@
   <!-- SELECCION DE NIVEL -->
   <div class="overlay hidden" id="levelMenu">
     <div class="screen-title">ELEGIR NOCHE</div>
+    <div class="diff-row"><span>DIFICULTAD</span><div class="diff-toggle" id="diffToggle"></div></div>
+    <div class="diff-desc" id="diffDesc"></div>
     <div class="level-cards" id="levelCards"></div>
     <button class="btn ghost" data-back>VOLVER</button>
   </div>
@@ -96,6 +98,7 @@
       </div>
       <div class="slots" id="lobbySlots"></div>
       <div class="lobby-levels" id="lobbyLevels"></div>
+      <div class="diff-row"><span>DIFICULTAD</span><div class="diff-toggle" id="lobbyDiff"></div></div>
       <div class="lobby-wait" id="lobbyWait">Esperando que el anfitrión empiece la partida...</div>
       <button class="btn" id="btnStartCoop">EMPEZAR</button>
     </div>

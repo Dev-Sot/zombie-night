@@ -213,7 +213,7 @@ function hole(x, y, r, a = 1) {
 
 export function drawLighting(extra) {
   const L = S.level, W = S.world;
-  const dark = (L.darkness ?? 0.9) * (1 - weather.flash * 0.85);
+  const dark = Math.min(0.97, (L.darkness ?? 0.9) + (S.diff?.dark || 0)) * (1 - weather.flash * 0.85);
   lctx.globalCompositeOperation = 'source-over';
   lctx.clearRect(0, 0, GW, GH);
   lctx.fillStyle = `rgba(3,5,12,${dark})`;

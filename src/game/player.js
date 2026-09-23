@@ -57,9 +57,10 @@ export function heal(p) {
   const inv = p.inv;
   if (p.dead || p.hp >= p.maxHp) return;
   let amount = 0;
-  if (inv.medkit > 0 && p.maxHp - p.hp > 25) { inv.medkit--; amount = 55; }
-  else if (inv.bandage > 0) { inv.bandage--; amount = 22; }
-  else if (inv.medkit > 0) { inv.medkit--; amount = 55; }
+  const hm = S.diff?.heal || 1;
+  if (inv.medkit > 0 && p.maxHp - p.hp > 25) { inv.medkit--; amount = Math.round(55 * hm); }
+  else if (inv.bandage > 0) { inv.bandage--; amount = Math.round(22 * hm); }
+  else if (inv.medkit > 0) { inv.medkit--; amount = Math.round(55 * hm); }
   if (!amount) { if (p.local) bus.emit('toast', 'SIN VENDAS NI BOTIQUINES'); return; }
   p.hp = Math.min(p.maxHp, p.hp + amount);
   burst(p.x, p.y - 8, 12, { color: '#8dff8d', type: 'spark', lifeMul: 0.8, grav: -0.03, speed: 0.8 });
@@ -169,11 +170,12 @@ function drawReviveBar(p) {
   const t = 'CAIDO', w = textWidth(t);
   if (Math.floor(S.t / 20) % 2) pixelText(ctx, t, X - Math.floor(w / 2), Y - 8, '#e8483f');
   ctx.fillStyle = '#000'; ctx.fillRect(X - 12, Y, 24, 3);
-  ctx.fillStyle = '#7cff8f'; ctx.fillRect(X - 12, Y, Math.round(24 * (p.reviveT || 0) / REVIVE_T), 3);
+  ctx.fillStyle = '#7cff8f'; ctx.fillRect(X - 12, Y, Math.round(24 * (p.reviveT || 0) / reviveTime()), 3);
 }
 
 // Revivir: un compañero vivo parado al lado mantiene E
 export const REVIVE_T = 150;
+const reviveTime = () => REVIVE_T * (S.diff?.revive || 1);
 export function updateRevives() {
   if (S.players.length < 2) return;
   for (const p of S.players) {
@@ -181,7 +183,7 @@ export function updateRevives() {
     const helper = S.players.find((o) => !o.dead && o !== p && dist(o.x, o.y, p.x, p.y) < 20 && o.control.held?.('KeyE'));
     if (helper) {
       p.reviveT = (p.reviveT || 0) + 1;
-      if (p.reviveT >= REVIVE_T) {
+      if (p.reviveT >= reviveTime()) {
         p.dead = false; p.hp = 35; p.invuln = 120; p.reviveT = 0; p.deadT = 0;
         burst(p.x, p.y - 8, 16, { color: '#8dff8d', type: 'spark', lifeMul: 0.8, grav: -0.03, speed: 0.8 });
         sfx('heal');

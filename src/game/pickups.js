@@ -1,4 +1,5 @@
 import { frame, ctx, sx, sy, onScreen } from '../core/render.js';
+import { pixelText, textWidth } from '../core/pixelfont.js';
 import { S, rand, dist, bus } from '../core/state.js';
 import { sfx } from '../core/audio.js';
 import { burst, float } from './fx.js';
@@ -27,8 +28,9 @@ function give(pl, p) {
     if (!guns.length) return false;
     const w = guns.includes(inv.cur) && !WEAPONS[inv.cur].melee && Math.random() < 0.6 ? inv.cur : guns[Math.floor(Math.random() * guns.length)];
     const type = WEAPONS[w].ammo;
-    inv.ammo[type] += AMMO_GIVE[type];
-    float(p.x, p.y - 10, `+${AMMO_GIVE[type]} ${WEAPONS[w].name.toUpperCase()}`, '#e8e2c8');
+    const n = Math.max(1, Math.round(AMMO_GIVE[type] * (S.diff?.ammo || 1)));
+    inv.ammo[type] += n;
+    float(p.x, p.y - 10, `+${n} ${WEAPONS[w].name.toUpperCase()}`, '#e8e2c8');
     sfx('item');
   } else if (p.kind === 'bandage' || p.kind === 'medkit') {
     inv[p.kind]++;
@@ -60,8 +62,12 @@ export function updatePickups() {
       if (pl.dead) continue;
       const d = dist(pl.x, pl.y - 4, p.x, p.y);
       if (p.kind !== 'item' && p.kind !== 'weapon' && d < 26) { p.x += (pl.x - p.x) * 0.12; p.y += (pl.y - 4 - p.y) * 0.12; }
-      if (d < 9 && give(pl, p)) { p.taken = true; break; }
+      if (d >= 9) continue;
+      // las armas del mapa las puede agarrar cada jugador una vez
+      if (p.kind === 'weapon') { if (!pl.inv.weapons.includes(p.weapon)) give(pl, p); continue; }
+      if (give(pl, p)) { p.taken = true; break; }
     }
+    if (p.kind === 'weapon' && S.players.every((q) => q.gone || q.inv.weapons.includes(p.weapon))) p.taken = true;
   }
   S.pickups = S.pickups.filter((p) => !p.taken && p.life > 0);
 }
@@ -85,6 +91,10 @@ export function drawPickups() {
     }
     if (p.item === 'flare') drawFlare(p, bob);
     else frame(key, 0, p.x, p.y + bob, { anchor: 'center' });
+    if (p.kind === 'weapon') {
+      const n = WEAPONS[p.weapon].name.toUpperCase(), w = textWidth(n);
+      pixelText(ctx, n, sx(p.x) - Math.floor(w / 2), sy(p.y) - 14 + Math.round(bob), '#ffcf6b');
+    }
   }
 }
 

@@ -15,6 +15,7 @@ export const room = {
   players: [],       // [{ id, name, idx }]
   inGame: false,
   level: 1,
+  diff: 'normal',
 };
 
 let peer = null;
@@ -104,7 +105,7 @@ function dropClient(id) {
 
 export function broadcastLobby() {
   if (room.role !== 'host') return;
-  const msg = { t: 'lobby', code: room.code, players: room.players, level: room.level, inGame: room.inGame };
+  const msg = { t: 'lobby', code: room.code, players: room.players, level: room.level, diff: room.diff, inGame: room.inGame };
   for (const c of conns.values()) {
     const me = room.players.find((p) => p.id === c.peer);
     if (c.open) c.send({ ...msg, me: me?.idx ?? 0 });
@@ -132,7 +133,7 @@ export async function joinRoom(code, name) {
     hostConn.on('data', (msg) => {
       if (msg?.t === 'reject') { clearTimeout(timer); fail({ message: msg.why }); return; }
       if (msg?.t === 'lobby') {
-        Object.assign(room, { role: 'client', code: msg.code, players: msg.players, level: msg.level, me: msg.me, inGame: msg.inGame });
+        Object.assign(room, { role: 'client', code: msg.code, players: msg.players, level: msg.level, diff: msg.diff, me: msg.me, inGame: msg.inGame });
         if (!done) { done = true; clearTimeout(timer); resolve(); }
         H.onLobby();
         return;

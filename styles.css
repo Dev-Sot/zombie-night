@@ -30,7 +30,9 @@ button{ font-family:inherit; }
 .hud-level{ color:var(--accent); letter-spacing:1px; }
 .hud-coins{ margin-top:6px; display:flex; gap:6px; justify-content:flex-end; align-items:center; color:#f3d27a; }
 .coin{ display:inline-block; width:.9em; height:.9em; border-radius:50%; background:radial-gradient(circle at 35% 35%,#fff3b0 0 18%,#e8c245 20% 60%,#9a6d12 62%); box-shadow:0 0 0 1px #3a2a08; }
+.hud-coins{ transform-origin:right center; }
 .hud-coins.bump{ animation:bump .25s; }
+.hud-level .hard{ color:var(--danger); }
 @keyframes bump{ 50%{ transform:scale(1.35); } }
 
 .objective{
@@ -152,7 +154,27 @@ button{ font-family:inherit; }
 .card .name{ font-size:1.05em; line-height:1.6; letter-spacing:1px; }
 .card .desc{ color:#b3afbf; font-size:.68em; line-height:2; }
 .card .tag{ position:absolute; top:1.2em; left:1.2em; font-size:.62em; color:var(--ink); letter-spacing:1px; background:rgba(0,0,0,.6); padding:.5em .7em; }
-.card .best{ position:absolute; top:1em; right:1em; font-size:1.1em; color:var(--ok); text-shadow:2px 2px 0 #000; }
+.card .bests{ position:absolute; top:1em; right:1em; display:flex; gap:.4em; }
+.card .best{ font-size:1em; color:var(--ok); background:rgba(0,0,0,.65); padding:.35em .45em; }
+.card .best.p{ color:var(--danger); }
+/* Ñ con tilde pixelada (la de Press Start 2P queda aplastada en su celda) */
+.ene{ position:relative; display:inline-block; }
+.ene::after{
+  content:""; position:absolute; left:.125em; top:-.375em; width:.75em; height:.25em; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 2' shape-rendering='crispEdges'%3E%3Cpath d='M1 0h2v1H1zM5 0h1v1H5zM0 1h1v1H0zM3 1h2v1H3z'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6 2' shape-rendering='crispEdges'%3E%3Cpath d='M1 0h2v1H1zM5 0h1v1H5zM0 1h1v1H0zM3 1h2v1H3z'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat;
+}
+/* selector de dificultad */
+.diff-row{ display:flex; align-items:center; gap:1.2em; color:var(--muted); font-size:.85em; }
+.diff-toggle{ display:flex; border:1px solid rgba(255,255,255,.2); }
+.diff-toggle .diff{ font-family:inherit; font-size:1em; letter-spacing:2px; padding:.8em 1.3em; background:transparent; color:var(--muted); border:none; cursor:pointer; }
+.diff-toggle .diff:hover:not(:disabled){ color:var(--ink); }
+.diff-toggle .diff.on{ background:var(--ink); color:#0b0b10; }
+.diff-toggle .diff.pesadilla.on{ background:var(--danger); color:#140404; box-shadow:0 0 18px rgba(232,72,63,.45); }
+.diff-toggle .diff:disabled{ cursor:default; }
+.diff-desc{ color:var(--muted); font-size:.72em; min-height:1em; margin-top:-.6em; }
+#levelMenu.nightmare{ background:radial-gradient(ellipse at 50% 120%, rgba(120,10,10,.45), rgba(4,4,8,.86) 60%); }
+#levelMenu.nightmare .diff-desc{ color:#e8a09a; }
 .card.locked{ cursor:not-allowed; filter:grayscale(.85) brightness(.6); }
 .card.locked:hover{ transform:none; border-color:var(--line); box-shadow:none; }
 .card .lockmsg{ color:var(--ink); font-size:.62em; line-height:1.8; letter-spacing:1px; border-top:1px solid rgba(255,255,255,.12); padding-top:.9em; }

@@ -42,7 +42,7 @@ export function encodeSnapshot(events) {
 // ---------------- cliente ----------------
 function makeZombie(id, type) {
   const T = ZTYPES[type];
-  return { id, type, T, r: T.r, scale: T.scale || 1, maxHp: T.hp, kx: 0, ky: 0, puppet: true };
+  return { id, type, T, r: T.r, scale: T.scale || 1, maxHp: T.hp * (S.diff?.zHp || 1), kx: 0, ky: 0, puppet: true };
 }
 
 export function applySnapshot(s, me) {

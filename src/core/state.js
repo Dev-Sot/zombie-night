@@ -24,6 +24,7 @@ export const S = {
   startTime: 0,
   objective: null,
   paused: false,
+  diff: null,         // dificultad activa (difficulty.js)
   over: false,
 };
 

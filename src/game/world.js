@@ -38,6 +38,7 @@ const PROP_DEFS = {
   spruce_green: { hit: () => box(5, 24, 6, 5), bullets: true }, spruce_dead: { hit: () => box(5, 24, 6, 5), bullets: true },
   pine_green: { hit: () => box(10, 43, 7, 6), bullets: true }, pine_dead: { hit: () => box(10, 43, 7, 6), bullets: true },
   tree_green: { hit: () => box(7, 25, 7, 5), bullets: true }, tree_dead: { hit: () => box(7, 25, 7, 5), bullets: true },
+  fence: { hit: () => box(0, 11, 48, 4) }, fence_b: { hit: () => box(0, 11, 48, 4) }, fence_c: { hit: () => box(0, 11, 48, 4) },
   birch_green: { hit: () => box(15, 39, 9, 6), bullets: true }, birch_dead: { hit: () => box(15, 39, 9, 6), bullets: true },
 };
 const FLAT = new Set(['tuft_green', 'tuft_dead', 'puddle', 'manhole', 'cardboard', 'posters', 'trash_bag']);
@@ -65,7 +66,7 @@ export function buildWorld(L) {
     W.lamps.push({ x: l.x, y: l.y, r: l.r || 78, flicker: !!l.flicker, on: true, t: R() * 100 });
   }
   for (const f of L.fences || []) {
-    for (let i = 0; i < f.len; i += 48) addProp(W, 'fence', f.x + i, f.y, { solid: false });
+    for (let i = 0; i < f.len; i += 48) { const r = R(); addProp(W, r < 0.7 ? 'fence' : r < 0.85 ? 'fence_b' : 'fence_c', f.x + i, f.y); }
   }
   // relleno decorativo (árboles, pasto) sin pisar calles, edificios ni zonas de juego
   const clear = [...(L.keepClear || []), ...W.areas.filter((a) => a.road)];

@@ -133,8 +133,10 @@ export const LEVELS = [
     shop: { x: 603, y: 170 },
     markers: [{ id: 'ant', type: 'antenna', x: 320, y: 240 }],
     waves: { first: 6, grow: 3, cap: 22, rate: 70, mix: MIX_2 },
-    loadout: { weapons: ['bat', 'pistol', 'shotgun'], ammo: { pistol: 36, shotgun: 12 }, bandage: 1, medkit: 1, coins: 10 },
-    shopItems: ['ammo_pistol', 'ammo_shotgun', 'bandage', 'medkit', 'rifle', 'ammo_rifle'],
+    loadout: { weapons: ['bat', 'pistol'], ammo: { pistol: 48, shotgun: 6 }, bandage: 1, medkit: 1, coins: 10 },
+    // escopeta escondida en el depósito del este
+    weaponSpots: [{ weapon: 'shotgun', x: 1125, y: 596 }],
+    shopItems: ['ammo_pistol', 'ammo_shotgun', 'bandage', 'medkit', 'shotgun', 'rifle', 'ammo_rifle'],
     intro: [
       '06:10. La niebla no deja ver a diez metros.',
       'La radio de la comisaría todavía tiene batería. Le faltan piezas.',
@@ -191,8 +193,10 @@ export const LEVELS = [
     shop: { x: 617, y: 290 },
     markers: [{ id: 'pad', type: 'helipad', x: 1155, y: 200 }, { id: 'f1', type: 'flare', x: 1070, y: 140 }, { id: 'f2', type: 'flare', x: 1240, y: 265 }],
     waves: { first: 7, grow: 3, cap: 26, rate: 60, mix: MIX_3 },
-    loadout: { weapons: ['bat', 'pistol', 'shotgun', 'rifle'], ammo: { pistol: 36, shotgun: 12, rifle: 60 }, bandage: 2, medkit: 1, coins: 15 },
-    shopItems: ['ammo_pistol', 'ammo_shotgun', 'ammo_rifle', 'bandage', 'medkit'],
+    loadout: { weapons: ['bat', 'pistol', 'shotgun'], ammo: { pistol: 36, shotgun: 12, rifle: 30 }, bandage: 2, medkit: 1, coins: 15 },
+    // rifle en el galpón del oeste, lejos del helipuerto
+    weaponSpots: [{ weapon: 'rifle', x: 135, y: 226 }],
+    shopItems: ['ammo_pistol', 'ammo_shotgun', 'ammo_rifle', 'bandage', 'medkit', 'rifle'],
     intro: [
       '23:58. La tormenta tapa todo menos los relámpagos.',
       'El helicóptero no puede bajar a ciegas.',

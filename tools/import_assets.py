@@ -104,7 +104,13 @@ for color in ('beige', 'gray', 'dark', 'white'):
     tile(f'Tiles/Buildings/Buildings_{color}_TileSet.png', 1, 2, f'env/wall_{color}.png')
 crop('Tiles/Roof_TileSet.png', (0, 0, 48, 80), 'env/roof_gray.png')
 crop('Tiles/Roof_TileSet.png', (128, 0, 176, 80), 'env/roof_red.png')
-crop('Tiles/Iron-Fence_TileSet.png', (0, 0, 48, 16), 'env/fence.png')
+# cerca de alambre: 3 variantes de 48px armadas con tiles de 16 (liso, cartel, rota)
+wire = Image.open(os.path.join(SRC, 'Tiles/Wire-Fence/Wire-Fence_TileSet.png')).convert('RGBA')
+for name, tiles in {'fence': [(1, 1), (1, 1), (4, 2)], 'fence_b': [(1, 1), (1, 0), (4, 2)], 'fence_c': [(1, 1), (1, 2), (4, 2)]}.items():
+    strip = Image.new('RGBA', (48, 16))
+    for i, (cx, cy) in enumerate(tiles):
+        strip.paste(wire.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)), (i * 16, 0))
+    strip.save(out(f'env/{name}.png'))
 for src, dst in [
     ('Window_9_gray.png', 'window'), ('Window_7_broken_gray.png', 'window_broken'),
     ('Window_11_Boarded-up_gray.png', 'window_boarded'), ('Window_15_Beige.png', 'window_beige'),

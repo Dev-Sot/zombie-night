@@ -6,6 +6,7 @@ import { WEAPONS, ORDER } from '../game/weapons.js';
 import { objectiveText } from '../game/objectives.js';
 import { room, cleanCode, MAX_PLAYERS } from '../net/net.js';
 import { TINT_CSS } from '../game/player.js';
+import { DIFFS, priceOf, bestKey } from '../game/difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 const OVERLAYS = ['mainMenu', 'levelMenu', 'coopMenu', 'settingsMenu', 'howtoMenu', 'creditsMenu', 'pauseMenu', 'shopMenu', 'resultsMenu', 'deathMenu', 'loading'];
@@ -16,6 +17,9 @@ export function setThumbs(t) { thumbs = t; }
 
 // Press Start 2P no trae mayúsculas acentuadas: se reemplazan por las simples
 export const px = (t) => String(t).replace(/[ÁÉÍÓÚ]/g, (c) => ({ Á: 'A', É: 'E', Í: 'I', Ó: 'O', Ú: 'U' })[c]);
+// versión HTML: además dibuja la Ñ como una N con tilde pixelada (la de la fuente queda aplastada)
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+export const pxHtml = (t) => esc(px(t)).replace(/Ñ/g, '<span class="ene">N</span>');
 
 export function show(id) {
   $('banner').classList.remove('show');
@@ -88,8 +92,24 @@ export function updateContinue() {
   $('btnContinue').innerHTML = `<span class="arrow"></span>${save.unlocked > 1 ? 'CONTINUAR' : 'JUGAR'}`;
 }
 
+function renderDiffToggle(box, current, onPick, enabled = true) {
+  box.innerHTML = '';
+  for (const D of Object.values(DIFFS)) {
+    const b = document.createElement('button');
+    b.className = `diff ${D.id}${current === D.id ? ' on' : ''}`;
+    b.textContent = D.name;
+    b.disabled = !enabled;
+    b.addEventListener('mouseenter', () => sfx('uiHover'));
+    b.addEventListener('click', () => { sfx('uiClick'); onPick(D.id); });
+    box.appendChild(b);
+  }
+}
+
 function renderLevels() {
   const wrap = $('levelCards');
+  renderDiffToggle($('diffToggle'), save.diff, (id) => { save.diff = id; persist(); renderLevels(); });
+  $('diffDesc').textContent = DIFFS[save.diff].desc;
+  $('levelMenu').classList.toggle('nightmare', save.diff === 'pesadilla');
   wrap.innerHTML = '';
   [...LEVELS, LEVEL4].forEach((L) => {
     const locked = L.id !== 4 && L.id > save.unlocked;
@@ -99,9 +119,9 @@ function renderLevels() {
     c.style.setProperty('--c', th ? `url(${th}) center/cover` : `linear-gradient(160deg, ${L.color}, #07070a)`);
     c.innerHTML = `
       <div class="tag">${L.tag}</div>
-      ${save.best[L.id] ? `<div class="best">${save.best[L.id]}</div>` : ''}
+      <div class="bests">${save.best[bestKey(L.id, 'normal')] ? `<span class="best">${save.best[bestKey(L.id, 'normal')]}</span>` : ''}${save.best[bestKey(L.id, 'pesadilla')] ? `<span class="best p">${save.best[bestKey(L.id, 'pesadilla')]}</span>` : ''}</div>
       <div class="num">NOCHE ${L.id}</div>
-      <div class="name">${px(L.name.toUpperCase())}</div>
+      <div class="name">${pxHtml(L.name.toUpperCase())}</div>
       <div class="desc">${L.desc}</div>
       ${locked ? '<div class="lockmsg">SUPERA LA NOCHE ANTERIOR</div>' : ''}
       ${L.id === 4 ? '<div class="lockmsg go">JUGAR ONLINE</div>' : ''}`;
@@ -137,7 +157,7 @@ export function buildHud(p) {
     $('hotbar').appendChild(s);
   });
   Object.keys(cache).forEach((k) => delete cache[k]);
-  set('hudLevel', 'textContent', px(`NOCHE ${S.level.id} · ${S.level.name.toUpperCase()}`));
+  set('hudLevel', 'innerHTML', pxHtml(`NOCHE ${S.level.id} · ${S.level.name.toUpperCase()}`) + (S.diff?.id === 'pesadilla' ? ' <span class="hard">· PESADILLA</span>' : ''));
   updateHud(p);
 }
 
@@ -183,14 +203,14 @@ export function prompt(text) {
 let bannerT = null;
 export function banner(text, danger) {
   const b = $('banner');
-  b.textContent = px(text); b.classList.toggle('danger', !!danger); b.classList.add('show');
+  b.innerHTML = pxHtml(text); b.classList.toggle('danger', !!danger); b.classList.add('show');
   clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('show'), 2600);
 }
 
 let toastT = null;
 export function toast(text) {
   const t = $('toast');
-  t.textContent = px(text); t.classList.add('show');
+  t.innerHTML = pxHtml(text); t.classList.add('show');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
@@ -227,7 +247,7 @@ export function openShop(p, items) {
       const it = SHOP_ITEMS[b.dataset.k];
       const owned = it.weapon && p.inv.weapons.includes(it.weapon);
       const needGun = b.dataset.k.startsWith('ammo_') && !p.inv.weapons.includes(b.dataset.k.slice(5));
-      b.disabled = owned || needGun || p.coins < it.price;
+      b.disabled = owned || needGun || p.coins < priceOf(it, S.diff);
       b.querySelector('small').textContent = owned ? 'ya la tenés' : needGun ? 'necesitás el arma' : it.sub;
     });
   };
@@ -235,7 +255,7 @@ export function openShop(p, items) {
     const it = SHOP_ITEMS[k];
     const b = document.createElement('button');
     b.className = 'item'; b.dataset.k = k;
-    b.innerHTML = `<img src="assets/ui/${it.icon}.png" alt=""><span class="t">${it.name}<small></small></span><span class="p">${it.price}</span>`;
+    b.innerHTML = `<img src="assets/ui/${it.icon}.png" alt=""><span class="t">${it.name}<small></small></span><span class="p">${priceOf(it, S.diff)}</span>`;
     b.addEventListener('mouseenter', () => sfx('uiHover'));
     b.addEventListener('click', () => { if (H.onShopBuy(k)) refresh(); });
     grid.appendChild(b);
@@ -249,7 +269,7 @@ export function openShop(p, items) {
 const endLabel = (role) => (role === 'host' ? 'VOLVER A LA SALA' : role === 'client' ? 'SALIR DE LA SALA' : 'MENU');
 export function showResults(stats, rank, hasNext, role = null) {
   $('resultsRank').textContent = rank;
-  $('resultsStats').innerHTML = stats.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
+  $('resultsStats').innerHTML = stats.map(([k, v]) => `<span>${pxHtml(k)}</span><span>${pxHtml(v)}</span>`).join('');
   $('btnNext').classList.toggle('hidden', !hasNext || role === 'client');
   $('resultsNote').classList.toggle('hidden', role !== 'client');
   $('btnResultsMenu').textContent = endLabel(role);
@@ -258,7 +278,7 @@ export function showResults(stats, rank, hasNext, role = null) {
   show('resultsMenu');
 }
 export function showDeath(stats, role = null) {
-  $('deathStats').innerHTML = stats.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
+  $('deathStats').innerHTML = stats.map(([k, v]) => `<span>${pxHtml(k)}</span><span>${pxHtml(v)}</span>`).join('');
   $('btnRetry').classList.toggle('hidden', role === 'client');
   $('deathNote').classList.toggle('hidden', role !== 'client');
   $('btnDeathMenu').textContent = endLabel(role);
@@ -342,10 +362,11 @@ export function renderLobby() {
     b.className = `lvl${room.level === L.id ? ' on' : ''}`;
     b.disabled = !host;
     if (thumbs[L.id]) b.style.backgroundImage = `url(${thumbs[L.id]})`;
-    b.innerHTML = `<span>NOCHE ${L.id}</span><b>${px(L.name.toUpperCase())}</b>`;
+    b.innerHTML = `<span>NOCHE ${L.id}</span><b>${pxHtml(L.name.toUpperCase())}</b>`;
     b.addEventListener('click', () => { sfx('uiClick'); H.onCoopLevel(L.id); });
     lv.appendChild(b);
   }
+  renderDiffToggle($('lobbyDiff'), room.diff, (id) => H.onCoopDiff(id), host);
   $('btnStartCoop').classList.toggle('hidden', !host);
   $('lobbyWait').classList.toggle('hidden', host);
   $('btnStartCoop').textContent = room.players.length > 1 ? `EMPEZAR (${room.players.length} JUGADORES)` : 'EMPEZAR SOLO';
