@@ -900,8 +900,8 @@ function drawSurvivor(){
   const hurt = player.hurtFlash>0 && Math.floor(t/2)%2===0;
   ctx.save();
   ctx.translate(sx,sy);
-  // shadow
-  ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0,7,7,3,0,0,Math.PI*2); ctx.fill();
+  // shadow — anchored right at the feet (y:0 is the sprite's bottom edge)
+  ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0,0,7,2.5,0,0,Math.PI*2); ctx.fill();
   drawSpriteEntity('player', player.angle, player.walk, 1.05, hurt?'brightness(2.2)':null);
   ctx.restore();
   // "armed" reads from the weapon slot in the HUD + the flashlight cone +
@@ -924,7 +924,7 @@ function drawZombie(z){
     ctx.translate(0,4);
   }
   const flash = z.hitFlash>0;
-  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0,7,z.r*0.8,3,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0,0,z.r*0.8,2.5,0,0,Math.PI*2); ctx.fill();
   drawSpriteEntity(ZSPRITE[z.type], z.angle, z.walk, ZSCALE[z.type], flash?'brightness(3) grayscale(1)':null);
   ctx.restore();
 
