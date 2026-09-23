@@ -4,7 +4,7 @@ import { initTouch } from './core/touch.js';
 import { loadAll } from './core/assets.js';
 import { initAudio } from './core/audio.js';
 import { save } from './core/save.js';
-import { room, createRoom, joinRoom, leaveRoom, broadcastLobby } from './net/net.js';
+import { room, createRoom, joinRoom, leaveRoom, broadcastLobby, pickChar } from './net/net.js';
 import * as ui from './ui/ui.js';
 import * as game from './game/game.js';
 
@@ -21,8 +21,10 @@ function unlockAudio() {
 window.addEventListener('pointerdown', unlockAudio);
 window.addEventListener('keydown', unlockAudio);
 
-ui.setLoading(0, 'CARGANDO');
-await loadAll((p) => ui.setLoading(p, `CARGANDO  ${Math.round(p * 100)}%`));
+ui.setLoading(0, 'cargando');
+const tips = ui.startTips();
+await loadAll((p) => ui.setLoading(p, `cargando  ${Math.round(p * 100)}%`));
+clearInterval(tips);
 
 ui.initUI({
   onPlayLevel: (id) => game.startLevel(id),
@@ -36,8 +38,9 @@ ui.initUI({
   onNext: () => game.nextLevel(),
   onShopClose: () => game.resume(),
   onShopBuy: (k) => game.buy(k),
-  onCoopCreate: (name) => createRoom(name),
-  onCoopJoin: (code, name) => joinRoom(code, name),
+  onCoopCreate: (name, char) => createRoom(name, char),
+  onCoopJoin: (code, name, char) => joinRoom(code, name, char),
+  onCoopPick: (char) => pickChar(char),
   onCoopLeave: () => { leaveRoom(); ui.renderLobby(); },
   onCoopLevel: (id) => { if (room.role === 'host') { room.level = id; broadcastLobby(); } },
   onCoopStart: () => { if (room.role === 'host') game.hostStart(room.level); },

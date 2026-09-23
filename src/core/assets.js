@@ -29,8 +29,12 @@ const ENV = [
 const MANIFEST = [];
 const add = (key, frames = 1) => MANIFEST.push({ key, frames });
 
-DIR4.forEach((d) => { add(`char/run_${d}`, 6); add(`char/idle_${d}`, 6); });
-add('char/death_side', 6); add('char/death_sideleft', 6);
+// sobrevivientes (tools/make_characters.py): misma animación, distinta paleta
+export const CHAR_SPRITES = ['tomas', 'vera', 'hugo', 'nina', 'bruno', 'lucia', 'ramiro'];
+for (const c of CHAR_SPRITES) {
+  DIR4.forEach((d) => { add(`char/${c}/run_${d}`, 6); add(`char/${c}/idle_${d}`, 6); });
+  add(`char/${c}/death_side`, 6); add(`char/${c}/death_sideleft`, 6);
+}
 ['pistol', 'shotgun', 'rifle', 'bat', 'axe'].forEach((w) => add(`weapons/${w}`));
 add('fx/muzzle', 3); add('fx/blood1', 3); add('fx/blood2', 3); add('fx/axe_spin', 9); add('fx/axe_landed');
 for (const [z, f] of Object.entries(ZOMBIE_FRAMES)) {

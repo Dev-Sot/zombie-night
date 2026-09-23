@@ -28,7 +28,7 @@ function give(pl, p) {
     if (!guns.length) return false;
     const w = guns.includes(inv.cur) && !WEAPONS[inv.cur].melee && Math.random() < 0.6 ? inv.cur : guns[Math.floor(Math.random() * guns.length)];
     const type = WEAPONS[w].ammo;
-    const n = Math.max(1, Math.round(AMMO_GIVE[type] * (S.diff?.ammo || 1)));
+    const n = Math.max(1, Math.round(AMMO_GIVE[type] * (S.diff?.ammo || 1) * (pl.mods?.ammo || 1)));
     inv.ammo[type] += n;
     float(p.x, p.y - 10, `+${n} ${WEAPONS[w].name.toUpperCase()}`, '#e8e2c8');
     sfx('item');

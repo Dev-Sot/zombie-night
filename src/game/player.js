@@ -5,22 +5,26 @@ import { sfx } from '../core/audio.js';
 import { moveEntity } from './world.js';
 import { blood, shake, burst, float } from './fx.js';
 import { WEAPONS, ORDER, tryFire, startReload, finishReload, drawHeldWeapon, dust } from './weapons.js';
+import { charById } from './characters.js';
+import { bark } from './barks.js';
 
-// colores de los jugadores 2-4 (el 1 usa el sprite original)
-export const TINTS = [null, 'hue-rotate(110deg) saturate(1.3)', 'hue-rotate(200deg) saturate(1.4)', 'hue-rotate(300deg) saturate(1.3)'];
+// color de cada jugador (anillo y nombre en multijugador)
 export const TINT_CSS = ['#e9e6df', '#7cff8f', '#7cc4ff', '#ff8fd8'];
 
-export function createPlayer(L, control, idx = 0, name = '') {
+export function createPlayer(L, control, idx = 0, name = '', charId = 'tomas') {
   const lo = L.loadout;
+  const ch = charById(charId), mods = ch.mods;
   const inv = {
     weapons: [...lo.weapons], cur: lo.weapons.includes('pistol') ? 'pistol' : lo.weapons[0],
     mag: {}, ammo: { pistol: 0, shotgun: 0, rifle: 0, ...lo.ammo },
-    medkit: lo.medkit || 0, bandage: lo.bandage || 0,
+    medkit: (lo.medkit || 0) + (mods.startMedkit || 0), bandage: lo.bandage || 0,
   };
+  for (const [k, v] of Object.entries(mods.startAmmo || {})) inv.ammo[k] += v;
+  const maxHp = mods.maxHp || 100;
   for (const w of inv.weapons) inv.mag[w] = WEAPONS[w].mag || 0;
   return {
-    idx, name, local: !control.remote, reviveT: 0,
-    x: L.player.x + [0, 14, -14, 0][idx], y: L.player.y + [0, 6, 6, 14][idx], r: 5, hp: 100, maxHp: 100, speed: 1.3,
+    idx, name, local: !control.remote, reviveT: 0, char: ch.id, mods,
+    x: L.player.x + [0, 14, -14, 0][idx], y: L.player.y + [0, 6, 6, 14][idx], r: 5, hp: maxHp, maxHp, speed: 1.3 * (mods.speed || 1),
     aim: -Math.PI / 2, dir: 'up', walk: 0, moving: false, control, inv,
     coins: lo.coins || 0, lightOn: true,
     fireCd: 0, reloadT: 0, swingT: 0, recoil: 0, muzzleT: 0,
@@ -45,11 +49,13 @@ export function hurtPlayer(p, dmg, angle, ignoreInvuln = false) {
   shake(6);
   sfx('hurt');
   bus.emit('hurt', p);
+  if (p.hp > 0 && p.hp < 30 && !p.lowBarked) { p.lowBarked = true; bark(p, 'low', true); }
   if (p.hp <= 0) {
     p.hp = 0; p.dead = true; p.deadT = 0;
     p.deathDir = Math.cos(angle) >= 0 ? 'side' : 'sideleft';
     if (!net.role) S.timeScale = 0.35;
     bus.emit('playerDown', p);
+    if (S.players.length > 1) bark(p, 'down', true);
   }
 }
 
@@ -57,12 +63,13 @@ export function heal(p) {
   const inv = p.inv;
   if (p.dead || p.hp >= p.maxHp) return;
   let amount = 0;
-  const hm = S.diff?.heal || 1;
+  const hm = (S.diff?.heal || 1) * (p.mods?.heal || 1);
   if (inv.medkit > 0 && p.maxHp - p.hp > 25) { inv.medkit--; amount = Math.round(55 * hm); }
   else if (inv.bandage > 0) { inv.bandage--; amount = Math.round(22 * hm); }
   else if (inv.medkit > 0) { inv.medkit--; amount = Math.round(55 * hm); }
   if (!amount) { if (p.local) bus.emit('toast', 'SIN VENDAS NI BOTIQUINES'); return; }
   p.hp = Math.min(p.maxHp, p.hp + amount);
+  if (p.hp > 50) p.lowBarked = false;
   burst(p.x, p.y - 8, 12, { color: '#8dff8d', type: 'spark', lifeMul: 0.8, grav: -0.03, speed: 0.8 });
   float(p.x, p.y - 20, `+${amount}`, '#9dff9d');
   sfx('heal');
@@ -136,9 +143,8 @@ export function playerDrawables() {
 }
 
 export function drawPlayer(p) {
-  const tint = TINTS[p.idx || 0];
   if (p.dead) {
-    frame(`char/death_${p.deathDir}`, Math.min(5, p.deadT / 6), p.x, p.y, { filter: tint || undefined });
+    frame(`char/${p.char || 'tomas'}/death_${p.deathDir}`, Math.min(5, p.deadT / 6), p.x, p.y);
     if (S.players.length > 1) drawReviveBar(p);
     return;
   }
@@ -150,8 +156,9 @@ export function drawPlayer(p) {
     ctx.globalAlpha = 1;
   }
   const blink = p.invuln > 0 && Math.floor(S.t / 3) % 2 === 0;
-  const opt = { filter: blink ? 'brightness(2.2)' : tint || undefined, alpha: p.dashT > 0 ? 0.75 : 1 };
-  const body = p.moving || p.dashT > 0 ? `char/run_${p.dir}` : `char/idle_${p.dir}`;
+  const opt = { filter: blink ? 'brightness(2.2)' : undefined, alpha: p.dashT > 0 ? 0.75 : 1 };
+  const c = p.char || 'tomas';
+  const body = p.moving || p.dashT > 0 ? `char/${c}/run_${p.dir}` : `char/${c}/idle_${p.dir}`;
   const f = p.moving || p.dashT > 0 ? p.walk : S.t / 9;
   const behind = p.dir === 'up';
   if (behind) drawHeldWeapon(p);
@@ -182,12 +189,14 @@ export function updateRevives() {
     if (!p.dead || p.boarded) continue;
     const helper = S.players.find((o) => !o.dead && o !== p && dist(o.x, o.y, p.x, p.y) < 20 && o.control.held?.('KeyE'));
     if (helper) {
-      p.reviveT = (p.reviveT || 0) + 1;
+      p.reviveT = (p.reviveT || 0) + (helper.mods?.revive || 1);
       if (p.reviveT >= reviveTime()) {
         p.dead = false; p.hp = 35; p.invuln = 120; p.reviveT = 0; p.deadT = 0;
         burst(p.x, p.y - 8, 16, { color: '#8dff8d', type: 'spark', lifeMul: 0.8, grav: -0.03, speed: 0.8 });
         sfx('heal');
-        bus.emit('teamToast', `${(p.name || 'JUGADOR').toUpperCase()} VOLVIO`);
+        bark(helper, 'revive', true);
+        setTimeout(() => bark(p, 'thanks', true), 1600);
+        bus.emit('teamToast', `${(p.name || 'JUGADOR').toUpperCase()} VOLVIÓ`);
       }
     } else p.reviveT = Math.max(0, (p.reviveT || 0) - 2);
   }

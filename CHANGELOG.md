@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.7 — Sobrevivientes
+- Cinco sobrevivientes jugables con habilidad propia (Tomás, Vera, Hugo,
+  Nina y Bruno); en el online cada jugador elige el suyo y no se repiten.
+- Frases de los personajes durante la partida (recargar, caer, levantar a
+  alguien, gritones, jefes).
+- Interfaz nueva de horror cinematográfico: menú como cámara de seguridad
+  VHS, expediente con fotos Polaroid, fichas de sobrevivientes, sala online
+  estilo radio, informe mecanografiado, pantalla de muerte y créditos de
+  película.
+- Tarjeta de capítulo antes de cada noche y consejos en la carga.
+- Lucía y Ramiro con aspecto propio.
+
 ## v0.6 — El Hospital
 - Mundo 2 con tres noches nuevas: Aterrizaje forzoso, San Rafael y La salida.
 - Interiores: techos que se desvanecen, puertas con E, tarjeta de acceso,

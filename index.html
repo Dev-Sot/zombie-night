@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Noche Sin Luna</title>
-<meta name="description" content="Supervivencia zombie top-down en pixel art. Tres noches, una ciudad sin luz.">
+<meta name="description" content="Supervivencia zombie top-down en pixel art. Seis noches, dos mundos, hasta cuatro jugadores online.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Special+Elite&family=VT323&family=Permanent+Marker&family=Press+Start+2P&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -16,11 +17,12 @@
   <!-- HUD en partida -->
   <div class="hud hidden" id="hud">
     <div class="hud-tl">
+      <div class="hud-who"><img id="hudPortrait" alt=""><span id="hudName"></span></div>
       <div class="hearts" id="hearts"></div>
       <div class="hud-sub" id="hpText">100</div>
     </div>
     <div class="hud-tr">
-      <div class="hud-level" id="hudLevel">NIVEL 1</div>
+      <div class="hud-level" id="hudLevel">NOCHE 1</div>
       <div class="hud-sub" id="hudWave">OLEADA 1 · BAJAS 0</div>
       <div class="hud-coins"><span class="coin"></span><span id="hudCoins">0</span></div>
     </div>
@@ -35,6 +37,7 @@
       <div class="ammo-res" id="ammoRes">/ 48</div>
       <div class="ammo-reload hidden" id="ammoReload">RECARGANDO</div>
     </div>
+    <div class="barks" id="barks"></div>
     <div class="prompt hidden" id="prompt"></div>
     <div class="banner" id="banner"></div>
     <div class="toast" id="toast"></div>
@@ -42,12 +45,20 @@
 
   <!-- subtítulos de cinemática -->
   <div class="subtitles hidden" id="subtitles"></div>
-  <div class="skip hidden" id="skipHint">CLIC / ESPACIO PARA SALTAR</div>
+  <div class="skip hidden" id="skipHint">clic o espacio para saltar</div>
+
+  <!-- tarjeta de capítulo antes de cada noche -->
+  <div class="chapter hidden" id="chapter">
+    <div class="ch-num" id="chNum">NOCHE UNO</div>
+    <div class="ch-title" id="chTitle">El apagón</div>
+    <div class="ch-rule"></div>
+    <div class="ch-meta" id="chMeta">22:47 · Barrio</div>
+  </div>
 
   <!-- chat (multijugador) -->
   <div class="chat hidden" id="chat">
     <div class="chat-log" id="chatLog"></div>
-    <input class="chat-input hidden" id="chatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="ENTER ENVIAR  ·  ESC CERRAR">
+    <input class="chat-input hidden" id="chatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Enter enviar · Esc cerrar">
   </div>
 
   <!-- controles táctiles (solo en pantallas táctiles) -->
@@ -67,176 +78,204 @@
   </div>
 
   <div class="topControls hidden" id="topControls">
-    <button id="pauseBtn">PAUSA</button>
+    <button id="pauseBtn">pausa</button>
   </div>
 
-  <!-- MENU PRINCIPAL -->
+  <!-- MENÚ PRINCIPAL: la escena se ve como una cámara de seguridad -->
   <div class="overlay menu-main" id="mainMenu">
+    <div class="vhs-top"><span class="rec">REC</span><span id="vhsClock">00:00:00</span></div>
+    <div class="vhs-bottom"><span>CAM 03 · BARRIO NORTE</span><span id="vhsDate">SEP 23 2026</span></div>
     <div class="menu-panel">
       <div class="logo">
-        <div class="logo-top">NOCHE</div>
+        <div class="logo-top">noche</div>
         <div class="logo-bottom">SIN LUNA</div>
       </div>
-      <div class="tagline">Tres noches. Una ciudad sin luz.</div>
+      <div class="tagline">Seis noches. Nadie viene a buscarte.</div>
       <nav class="menu-list">
-        <button data-act="continue" id="btnContinue"><span class="arrow"></span>CONTINUAR</button>
-        <button data-act="levels"><span class="arrow"></span>NIVELES</button>
-        <button data-act="survival"><span class="arrow"></span>SUPERVIVENCIA</button>
-        <button data-act="coop"><span class="arrow"></span>JUNTOS <small class="tagnew">ONLINE</small></button>
-        <button data-act="settings"><span class="arrow"></span>AJUSTES</button>
-        <button data-act="howto"><span class="arrow"></span>CONTROLES</button>
-        <button data-act="credits"><span class="arrow"></span>CREDITOS</button>
+        <button data-act="continue" id="btnContinue">Continuar</button>
+        <button data-act="levels">Historia</button>
+        <button data-act="survival">Supervivencia</button>
+        <button data-act="coop">Juntos <small class="tagnew">online</small></button>
+        <button data-act="chars">Sobrevivientes</button>
+        <button data-act="settings">Ajustes</button>
+        <button data-act="howto">Controles</button>
+        <button data-act="credits">Créditos</button>
       </nav>
-      <div class="menu-foot">v0.6 · un juego de Dev-Sot</div>
+      <button class="survivor-strip" id="survivorStrip" data-act="chars">
+        <span class="ss-portrait" id="ssPortrait"></span>
+        <span class="ss-text"><small>sobreviviente</small><b id="ssName">Tomás</b><em id="ssRole">Electricista</em></span>
+      </button>
     </div>
+    <div class="menu-foot">v0.7 · un juego de Dev-Sot</div>
   </div>
 
-  <!-- SELECCION DE NIVEL -->
-  <div class="overlay hidden" id="levelMenu">
-    <div class="screen-title" id="levelTitle">ELEGIR NOCHE</div>
-    <div class="diff-toggle modes" id="modeToggle"></div>
-    <div class="diff-toggle worlds" id="worldToggle"></div>
-    <div class="diff-row"><span>DIFICULTAD</span><div class="diff-toggle" id="diffToggle"></div></div>
-    <div class="diff-desc" id="diffDesc"></div>
+  <!-- SELECCIÓN DE NOCHE: fotos clavadas en la pared -->
+  <div class="overlay board hidden" id="levelMenu">
+    <div class="board-head">
+      <div class="screen-title" id="levelTitle">Expediente · Historia</div>
+      <div class="tabs" id="modeToggle"></div>
+    </div>
+    <div class="board-bar">
+      <div class="tabs small" id="worldToggle"></div>
+      <div class="diff-row"><div class="stamps" id="diffToggle"></div><span class="diff-desc" id="diffDesc"></span></div>
+    </div>
     <div class="level-cards" id="levelCards"></div>
-    <button class="btn ghost" data-back>VOLVER</button>
+    <button class="btn ghost back" data-back>volver</button>
   </div>
 
-  <!-- JUNTOS: multijugador por código de sala -->
-  <div class="overlay hidden" id="coopMenu">
-    <div class="screen-title">JUNTOS</div>
-    <div class="coop-sub">Cooperativo online de 2 a 4 jugadores. Uno crea la sala y comparte el código.</div>
+  <!-- SOBREVIVIENTES: fichas de expediente -->
+  <div class="overlay board hidden" id="charMenu">
+    <div class="board-head">
+      <div class="screen-title">Sobrevivientes</div>
+      <div class="board-sub">Cada uno aporta algo distinto. En el online no se repiten.</div>
+    </div>
+    <div class="dossiers" id="charCards"></div>
+    <button class="btn ghost back" data-back>volver</button>
+  </div>
+
+  <!-- JUNTOS: sala por código, estilo radio -->
+  <div class="overlay board hidden" id="coopMenu">
+    <div class="board-head">
+      <div class="screen-title">Juntos</div>
+      <div class="board-sub">Cooperativo online de 2 a 4. Uno abre la frecuencia y comparte el código.</div>
+    </div>
     <div class="coop-join" id="coopJoin">
-      <label class="field">TU NOMBRE <input id="coopName" maxlength="10" autocomplete="off" spellcheck="false"></label>
+      <label class="field">tu nombre <input id="coopName" maxlength="10" autocomplete="off" spellcheck="false"></label>
       <div class="coop-row">
-        <button class="btn" id="btnCreateRoom">CREAR SALA</button>
-        <span class="coop-or">O</span>
-        <input id="coopCode" class="code-input" maxlength="5" placeholder="CODIGO" autocomplete="off" spellcheck="false">
-        <button class="btn ghost" id="btnJoinRoom">UNIRSE</button>
+        <button class="btn" id="btnCreateRoom">abrir frecuencia</button>
+        <span class="coop-or">o</span>
+        <input id="coopCode" class="code-input" maxlength="5" placeholder="CÓDIGO" autocomplete="off" spellcheck="false">
+        <button class="btn ghost" id="btnJoinRoom">sintonizar</button>
       </div>
     </div>
     <div class="coop-lobby hidden" id="coopLobby">
-      <div class="room-code">
-        <span>CODIGO DE SALA</span>
-        <b id="roomCode">-----</b>
-        <button class="btn ghost small" id="btnCopyLink">COPIAR ENLACE</button>
+      <div class="radio">
+        <div class="radio-screen"><small>FRECUENCIA</small><b id="roomCode">-----</b></div>
+        <button class="btn ghost small" id="btnCopyLink">copiar enlace</button>
       </div>
       <div class="slots" id="lobbySlots"></div>
+      <div class="pick-row"><span>tu sobreviviente</span><div class="pick" id="lobbyPick"></div></div>
       <div class="lobby-levels" id="lobbyLevels"></div>
-      <div class="diff-row"><span>MODO</span><div class="diff-toggle" id="lobbyMode"></div><span>DIFICULTAD</span><div class="diff-toggle" id="lobbyDiff"></div></div>
+      <div class="diff-row"><div class="tabs small" id="lobbyMode"></div><div class="stamps" id="lobbyDiff"></div></div>
       <div class="lobby-chat">
         <div class="chat-log open" id="lobbyChatLog"></div>
-        <input class="chat-input" id="lobbyChatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="ESCRIBI A LA SALA Y APRETA ENTER">
+        <input class="chat-input" id="lobbyChatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Hablale a la sala y apretá Enter">
       </div>
-      <div class="lobby-wait" id="lobbyWait">Esperando que el anfitrión empiece la partida...</div>
-      <button class="btn" id="btnStartCoop">EMPEZAR</button>
+      <div class="lobby-wait" id="lobbyWait">Esperando que el anfitrión empiece...</div>
+      <button class="btn" id="btnStartCoop">empezar</button>
     </div>
     <div class="coop-status" id="coopStatus"></div>
-    <button class="btn ghost" id="btnCoopBack">VOLVER</button>
+    <button class="btn ghost back" id="btnCoopBack">volver</button>
   </div>
 
   <!-- AJUSTES -->
-  <div class="overlay hidden" id="settingsMenu">
-    <div class="screen-title">AJUSTES</div>
+  <div class="overlay note hidden" id="settingsMenu">
+    <div class="screen-title">Ajustes</div>
     <div class="settings">
-      <label>MUSICA <input type="range" min="0" max="100" id="volMusic"></label>
-      <label>EFECTOS <input type="range" min="0" max="100" id="volSfx"></label>
-      <label class="check"><input type="checkbox" id="optShake"> TEMBLOR DE PANTALLA</label>
-      <label class="check"><input type="checkbox" id="optCine"> CINEMATICAS DE INICIO</label>
+      <label>música <input type="range" min="0" max="100" id="volMusic"></label>
+      <label>efectos <input type="range" min="0" max="100" id="volSfx"></label>
+      <label class="check"><input type="checkbox" id="optShake"> temblor de pantalla</label>
+      <label class="check"><input type="checkbox" id="optCine"> cinemáticas</label>
     </div>
-    <button class="btn ghost" data-back>VOLVER</button>
+    <button class="btn ghost back" data-back>volver</button>
   </div>
 
   <!-- CONTROLES -->
-  <div class="overlay hidden" id="howtoMenu">
-    <div class="screen-title">CONTROLES</div>
+  <div class="overlay note hidden" id="howtoMenu">
+    <div class="screen-title">Controles</div>
     <div class="keys">
       <div><b>WASD</b> moverse</div>
-      <div><b>MOUSE</b> apuntar</div>
-      <div><b>CLIC</b> disparar / golpear</div>
-      <div><b>ESPACIO</b> esquivar</div>
+      <div><b>Mouse</b> apuntar</div>
+      <div><b>Clic</b> disparar / golpear</div>
+      <div><b>Espacio</b> esquivar</div>
       <div><b>R</b> recargar</div>
-      <div><b>1-5 / RUEDA</b> cambiar arma</div>
+      <div><b>1-5 / rueda</b> cambiar arma</div>
       <div><b>Q</b> curarse</div>
-      <div><b>E</b> interactuar</div>
+      <div><b>E</b> usar, abrir, revisar</div>
       <div><b>F</b> linterna</div>
-      <div><b>ESC</b> pausa</div>
-      <div><b>MANTENER E</b> revivir compañero</div>
-      <div><b>G / CLIC MEDIO</b> marcar lugar</div>
-      <div><b>T / ENTER</b> chat (online)</div>
-      <div><b>JOYSTICK</b> sticks mover/apuntar, RT disparar</div>
+      <div><b>Esc</b> pausa</div>
+      <div><b>Mantener E</b> levantar a un compañero</div>
+      <div><b>G / clic medio</b> marcar un lugar</div>
+      <div><b>T / Enter</b> chat online</div>
+      <div><b>Joystick</b> sticks mover / apuntar, RT disparar</div>
       <div><b>A · B · X · Y</b> usar · esquivar · recargar · curar</div>
     </div>
-    <button class="btn ghost" data-back>VOLVER</button>
+    <button class="btn ghost back" data-back>volver</button>
   </div>
 
-  <!-- CREDITOS -->
-  <div class="overlay hidden" id="creditsMenu">
-    <div class="screen-title">CREDITOS</div>
+  <!-- CRÉDITOS: como el final de una película -->
+  <div class="overlay credits-roll hidden" id="creditsMenu">
     <div class="credits">
-      <p>Diseño y desarrollo<br><b>Dev-Sot</b></p>
-      <p>Personajes, zombies y escenarios<br><b>Post-Apocalypse Pixel Art Asset Pack</b> · TheLazyStone</p>
-      <p>Objetos recogibles<br><b>Zombie Apocalypse Tileset</b> · Ittai Manero</p>
-      <p>Hospital<br>mobiliario dibujado para el juego</p>
-      <p>Sonido<br><b>The Free Firearm Sound Library</b> · <b>Zombies Sound Pack</b> · Gun Reload Sounds (CC0)</p>
-      <p>Música<br>Augmentality · Juhani Junkala · Emma_MA · cynicmusic (CC0)</p>
-      <p>Red<br><b>PeerJS</b> · WebRTC</p>
+      <div class="cr-title">Noche Sin Luna</div>
+      <p><small>dirección, diseño y desarrollo</small><b>Dev-Sot</b></p>
+      <p><small>personajes, zombies y escenarios</small><b>Post-Apocalypse Pixel Art Asset Pack</b><em>TheLazyStone</em></p>
+      <p><small>objetos recogibles</small><b>Zombie Apocalypse Tileset</b><em>Ittai Manero</em></p>
+      <p><small>hospital y sobrevivientes</small><b>dibujados para el juego</b></p>
+      <p><small>sonido</small><b>The Free Firearm Sound Library · Zombies Sound Pack</b><em>Gun Reload Sounds (CC0)</em></p>
+      <p><small>música</small><b>Augmentality · Juhani Junkala · Emma_MA · cynicmusic</b><em>(CC0)</em></p>
+      <p><small>red</small><b>PeerJS</b></p>
     </div>
-    <button class="btn ghost" data-back>VOLVER</button>
+    <button class="btn ghost back" data-back>volver</button>
   </div>
 
   <!-- PAUSA -->
-  <div class="overlay hidden" id="pauseMenu">
-    <div class="screen-title">PAUSA</div>
+  <div class="overlay pause hidden" id="pauseMenu">
+    <div class="screen-title">Pausa</div>
     <div class="stack">
-      <button class="btn" id="btnResume">REANUDAR</button>
-      <button class="btn ghost" id="btnPauseSettings">AJUSTES</button>
-      <button class="btn ghost" id="btnRestart">REINICIAR NOCHE</button>
-      <button class="btn ghost" id="btnQuit">MENU PRINCIPAL</button>
+      <button class="btn" id="btnResume">reanudar</button>
+      <button class="btn ghost" id="btnPauseSettings">ajustes</button>
+      <button class="btn ghost" id="btnRestart">reiniciar la noche</button>
+      <button class="btn ghost" id="btnQuit">menú principal</button>
     </div>
   </div>
 
   <!-- TIENDA -->
-  <div class="overlay hidden" id="shopMenu">
-    <div class="screen-title">TIENDA</div>
-    <div class="shop-coins"><span class="coin"></span><span id="shopCoins">0</span></div>
+  <div class="overlay board hidden" id="shopMenu">
+    <div class="board-head">
+      <div class="screen-title">Provisiones</div>
+      <div class="shop-coins"><span class="coin"></span><span id="shopCoins">0</span></div>
+    </div>
     <div class="shop-grid" id="shopGrid"></div>
-    <button class="btn ghost" id="btnShopClose">CERRAR (E)</button>
+    <button class="btn ghost back" id="btnShopClose">cerrar (E)</button>
   </div>
 
-  <!-- RESULTADOS -->
+  <!-- RESULTADOS: informe mecanografiado -->
   <div class="overlay hidden" id="resultsMenu">
-    <div class="screen-title" id="resultsTitle">NOCHE SUPERADA</div>
-    <div class="rank" id="resultsRank">A</div>
-    <div class="stats" id="resultsStats"></div>
-    <div class="end-note hidden" id="resultsNote">El anfitrión elige cómo seguir</div>
+    <div class="report">
+      <div class="rp-head"><small>INFORME</small><span id="resultsTitle">NOCHE SUPERADA</span></div>
+      <div class="stats" id="resultsStats"></div>
+      <div class="rank" id="resultsRank">A</div>
+      <div class="end-note hidden" id="resultsNote">El anfitrión elige cómo seguir</div>
+    </div>
     <div class="stack row">
-      <button class="btn" id="btnNext">SIGUIENTE NOCHE</button>
-      <button class="btn ghost" id="btnResultsMenu">MENU</button>
+      <button class="btn" id="btnNext">siguiente noche</button>
+      <button class="btn ghost" id="btnResultsMenu">menú</button>
     </div>
   </div>
 
   <!-- MUERTE -->
-  <div class="overlay hidden" id="deathMenu">
+  <div class="overlay death hidden" id="deathMenu">
     <div class="screen-title danger">TE ATRAPARON</div>
     <div class="stats" id="deathStats"></div>
     <div class="end-note hidden" id="deathNote">El anfitrión puede reintentar la noche</div>
     <div class="stack row">
-      <button class="btn" id="btnRetry">REINTENTAR</button>
-      <button class="btn ghost" id="btnDeathMenu">MENU</button>
+      <button class="btn" id="btnRetry">reintentar</button>
+      <button class="btn ghost" id="btnDeathMenu">menú</button>
     </div>
   </div>
 
   <!-- CARGA -->
   <div class="overlay loading" id="loading">
-    <div class="loading-title">NOCHE SIN LUNA</div>
+    <div class="loading-title">Noche Sin Luna</div>
     <div class="loading-bar"><div id="loadingFill"></div></div>
-    <div class="loading-text" id="loadingText">CARGANDO</div>
+    <div class="loading-text" id="loadingText">cargando</div>
+    <div class="loading-tip" id="loadingTip"></div>
   </div>
 
+  <div class="grain"></div>
   <div class="fade" id="fade"></div>
 </div>
-<div class="rotate" id="rotate">GIRA EL TELEFONO<br>PARA JUGAR EN HORIZONTAL</div>
+<div class="rotate" id="rotate">Girá el teléfono<br>para jugar en horizontal</div>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

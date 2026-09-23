@@ -31,7 +31,7 @@ function vwall(x, y1, y2, gaps = [], style) {
 
 const MIX_H = [['nurse', 5, 1], ['walker', 3, 1], ['runner', 3, 2], ['screamer', 1, 2], ['bloater', 1, 3], ['thrower', 1, 3], ['brute', 1, 4]];
 const MIX_H2 = [['nurse', 4, 1], ['walker', 3, 1], ['runner', 3, 1], ['thrower', 2, 1], ['screamer', 1, 1], ['bloater', 2, 2], ['brute', 2, 2], ['toxic', 1, 3]];
-const LUCIA = { id: 'lucia', name: 'Lucía', hp: 90, filter: 'saturate(0.55) brightness(1.2)', color: '#9fd0ff' };
+const LUCIA = { id: 'lucia', name: 'Lucía', hp: 90, sprite: 'lucia', color: '#9fd0ff' };
 const CEIL = 'rgba(200,220,255,';
 const EMERG = 'rgba(255,50,40,';
 
@@ -84,7 +84,7 @@ export const LEVELS_W2 = [
     spawns: [{ x: 10, y: 600 }, { x: 1290, y: 500 }, { x: 640, y: 940 }, { x: 1290, y: 900 }, { x: 10, y: 900 }, { x: 815, y: 940 }, { x: 10, y: 280 }, { x: 1290, y: 280 }],
     shop: { x: 707, y: 376 },
     markers: [{ id: 'wreck', type: 'wreck', x: 380, y: 560 }],
-    npcs: [{ id: 'ramiro', name: 'Ramiro', x: 334, y: 596, static: true, filter: 'sepia(0.45) brightness(0.85)', color: '#e8e2c8' }],
+    npcs: [{ id: 'ramiro', name: 'Ramiro', x: 334, y: 596, static: true, sprite: 'ramiro', color: '#e8e2c8' }],
     waves: { first: 5, grow: 2, cap: 20, rate: 75, mix: MIX_H },
     loadout: { weapons: ['bat', 'pistol', 'shotgun'], ammo: { pistol: 48, shotgun: 12, rifle: 30 }, bandage: 1, coins: 20 },
     weaponSpots: [{ weapon: 'rifle', x: 1215, y: 440 }],

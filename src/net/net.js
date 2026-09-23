@@ -3,6 +3,8 @@
 // señalización de PeerJS; los demás se conectan directo a su navegador.
 // No hay servidor de juego: el anfitrión simula y reenvía el estado.
 
+import { CHARACTERS } from '../game/characters.js';
+
 const PREFIX = 'nochesinluna-v1-';
 const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const PEERJS = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
@@ -57,7 +59,7 @@ function friendly(e) {
 }
 
 // ---------------- anfitrión ----------------
-export async function createRoom(name) {
+export async function createRoom(name, char = 'tomas') {
   await loadPeerJS();
   let lastErr = null;
   for (let i = 0; i < 4 && !peer; i++) {
@@ -68,7 +70,7 @@ export async function createRoom(name) {
     }
   }
   if (!peer) throw new Error(friendly(lastErr));
-  Object.assign(room, { role: 'host', me: 0, inGame: false, players: [{ id: 'host', name, idx: 0 }] });
+  Object.assign(room, { role: 'host', me: 0, inGame: false, players: [{ id: 'host', name, idx: 0, char }] });
   peer.on('connection', acceptClient);
   peer.on('disconnected', () => { if (peer && !peer.destroyed) peer.reconnect(); });
   peer.on('error', (e) => console.warn('red:', e.type));
@@ -84,15 +86,34 @@ function acceptClient(conn) {
       const used = new Set(room.players.map((p) => p.idx));
       const idx = [0, 1, 2, 3].find((i) => !used.has(i));
       const name = String(msg.name || `JUGADOR ${idx + 1}`).slice(0, 10);
-      room.players.push({ id: conn.peer, name, idx });
+      room.players.push({ id: conn.peer, name, idx, char: freeChar(msg.char) });
       conns.set(conn.peer, conn);
       broadcastLobby();
       return;
     }
+    if (msg?.t === 'pick' && conns.has(conn.peer)) { setChar(conn.peer, msg.char); return; }
     if (conns.has(conn.peer)) H.onMsg(conn.peer, msg);
   });
   conn.on('close', () => dropClient(conn.peer));
   conn.on('error', () => dropClient(conn.peer));
+}
+
+// sobreviviente sin repetir: si el pedido está tomado, el primero libre
+function freeChar(want, except) {
+  const taken = new Set(room.players.filter((p) => p.id !== except).map((p) => p.char));
+  if (want && CHARACTERS.some((c) => c.id === want) && !taken.has(want)) return want;
+  return CHARACTERS.find((c) => !taken.has(c.id))?.id || 'tomas';
+}
+function setChar(id, want) {
+  const p = room.players.find((q) => q.id === id);
+  if (!p || room.inGame) return;
+  const taken = room.players.some((q) => q.id !== id && q.char === want);
+  if (!taken && CHARACTERS.some((c) => c.id === want)) p.char = want;
+  broadcastLobby();
+}
+export function pickChar(char) {
+  if (room.role === 'host') setChar('host', char);
+  else if (room.role === 'client') sendToHost({ t: 'pick', char });
 }
 
 function dropClient(id) {
@@ -119,7 +140,7 @@ export function broadcast(msg) {
 }
 
 // ---------------- cliente ----------------
-export async function joinRoom(code, name) {
+export async function joinRoom(code, name, char = 'tomas') {
   await loadPeerJS();
   try { peer = await openPeer(null); } catch (e) { throw new Error(friendly(e)); }
   return new Promise((resolve, reject) => {
@@ -129,7 +150,7 @@ export async function joinRoom(code, name) {
     peer.on('error', fail);
     hostConn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
     hostConn.on('open', () => {
-      hostConn.send({ t: 'hello', name });
+      hostConn.send({ t: 'hello', name, char });
     });
     hostConn.on('data', (msg) => {
       if (msg?.t === 'reject') { clearTimeout(timer); fail({ message: msg.why }); return; }

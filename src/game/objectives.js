@@ -7,6 +7,7 @@ import { spawnZombie } from './zombies.js';
 import { burst, light, shake } from './fx.js';
 import { survivalText, survivalTarget } from './survival.js';
 import { npc } from './npc.js';
+import { bark, anyone } from './barks.js';
 import { openDoor, doorLocked } from './world.js';
 import { frame } from '../core/render.js';
 
@@ -42,6 +43,7 @@ function nextStep() {
     const b = spawnZombie(st.zombie || 'boss', st.spawn.x, st.spawn.y);
     b.alert = true;
     S.boss = b;
+    setTimeout(() => bark(anyone(), 'boss', true), 1400);
   }
   runEvents(st.onStart);
   bus.emit('objective', st);

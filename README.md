@@ -51,11 +51,19 @@ escoltala hasta la ambulancia mientras el Paciente Cero los persigue.
   </tr>
   <tr>
     <td><img src="docs/screenshots/noche6.png" alt="Noche 6: La salida"></td>
-    <td><img src="docs/screenshots/niveles.png" alt="Elegir noche"></td>
+    <td><img src="docs/screenshots/niveles.png" alt="Expediente de noches"></td>
   </tr>
   <tr>
     <td align="center"><b>Noche 6 · La salida</b><br>El Paciente Cero</td>
-    <td align="center"><b>Dos mundos, dos dificultades</b><br>Historia y supervivencia</td>
+    <td align="center"><b>El expediente</b><br>Dos mundos, historia y supervivencia</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/sobrevivientes.png" alt="Sobrevivientes"></td>
+    <td><img src="docs/screenshots/sala.png" alt="Sala online"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Sobrevivientes</b><br>Cinco personajes con habilidad propia</td>
+    <td align="center"><b>La sala online</b><br>Cada jugador elige su sobreviviente</td>
   </tr>
 </table>
 
@@ -77,6 +85,13 @@ escoltala hasta la ambulancia mientras el Paciente Cero los persigue.
   menos balas, todo más caro), con mejor rango guardado para cada una.
 - **Modo supervivencia**: oleadas infinitas en los tres mapas, el Gigante cada
   10 oleadas, suministros cada 5 y récord por mapa y dificultad.
+- **Cinco sobrevivientes jugables**, cada uno con su oficio, su historia y
+  una habilidad propia: Tomás (electricista), Vera (policía), Hugo (obrero),
+  Nina (paramédica) y Bruno (soldado). Hablan durante la partida y en el
+  online no se repiten, como en Left 4 Dead.
+- **Interfaz de horror cinematográfico**: menú como cámara de seguridad VHS,
+  noches como fotos Polaroid de un expediente, fichas de los sobrevivientes,
+  tarjetas de capítulo antes de cada noche e informe mecanografiado al final.
 - **Teclado y mouse, joystick o celular**: controles de doble stick con
   joystick y joysticks táctiles en el teléfono.
 - **Presentación cinematográfica**: franjas de cine, travelling de cámara al
@@ -197,6 +212,10 @@ Ver [ROADMAP.md](ROADMAP.md) y el historial en [CHANGELOG.md](CHANGELOG.md).
   Boss Encounter* de cynicmusic, todas vía [OpenGameArt](https://opengameart.org).
 - Mobiliario y pisos del hospital: dibujados para el juego con
   `tools/make_interior.py`, usando la paleta del pack principal.
+- Sobrevivientes: variantes del personaje del pack armadas con
+  `tools/make_characters.py` (paletas propias y el casco del pack).
+- Tipografías: *IM Fell English SC*, *Special Elite*, *VT323* y *Permanent
+  Marker* (Google Fonts, SIL Open Font License).
 - Fuente: *Press Start 2P* por CodeMan38 (SIL Open Font License).
 - Conexiones en red: [PeerJS](https://peerjs.com) (MIT).
 

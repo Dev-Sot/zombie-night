@@ -241,7 +241,7 @@ export function drawLighting(extra) {
     const X = sx(p.x), Y = sy(p.y - 6);
     hole(X, Y, p.lightOn ? 50 : 26, 0.9);
     if (p.lightOn && !p.dead) {
-      const len = 150, half = 0.46;
+      const len = 150 * (p.mods?.light || 1), half = 0.46;
       lctx.save(); lctx.translate(X, Y); lctx.rotate(p.aim);
       const g = lctx.createRadialGradient(0, 0, 6, 0, 0, len);
       g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.7, 'rgba(255,255,255,0.5)'); g.addColorStop(1, 'rgba(255,255,255,0)');

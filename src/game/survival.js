@@ -7,6 +7,7 @@ import { spawnZombie, pickSpawnPoint } from './zombies.js';
 import { addPickup } from './pickups.js';
 import { cellFree } from './world.js';
 import { float, light } from './fx.js';
+import { bark, anyone } from './barks.js';
 
 export const BREATHER = 60 * 8;
 const FIRST_DELAY = 60 * 6;
@@ -73,7 +74,7 @@ function startWave() {
   playMusic(mood); bus.emit('music', mood);
   if (boss) {
     const sp = pickSpawnPoint();
-    if (sp) { const b = spawnZombie('boss', sp.x, sp.y); b.alert = true; V.total++; }
+    if (sp) { const b = spawnZombie('boss', sp.x, sp.y); b.alert = true; V.total++; bark(anyone(), 'boss', true); }
   }
 }
 
@@ -88,7 +89,7 @@ function endWave() {
     if (p.gone) continue;
     if (p.dead) { // al terminar la oleada vuelven los caídos
       p.dead = false; p.hp = 40; p.invuln = 120; p.reviveT = 0; p.deadT = 0;
-      bus.emit('teamToast', `${(p.name || 'JUGADOR').toUpperCase()} VOLVIO`);
+      bus.emit('teamToast', `${(p.name || 'JUGADOR').toUpperCase()} VOLVIÓ`);
     }
     p.coins += bonus;
     float(p.x, p.y - 24, `+${bonus}`, '#f3d27a');

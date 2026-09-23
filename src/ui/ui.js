@@ -8,9 +8,10 @@ import { room, cleanCode, MAX_PLAYERS } from '../net/net.js';
 import { TINT_CSS } from '../game/player.js';
 import { DIFFS, priceOf, bestKey } from '../game/difficulty.js';
 import { SURVIVAL_DESC } from '../game/survival.js';
+import { CHARACTERS, charById } from '../game/characters.js';
 
 const $ = (id) => document.getElementById(id);
-const OVERLAYS = ['mainMenu', 'levelMenu', 'coopMenu', 'settingsMenu', 'howtoMenu', 'creditsMenu', 'pauseMenu', 'shopMenu', 'resultsMenu', 'deathMenu', 'loading'];
+const OVERLAYS = ['mainMenu', 'levelMenu', 'charMenu', 'coopMenu', 'settingsMenu', 'howtoMenu', 'creditsMenu', 'pauseMenu', 'shopMenu', 'resultsMenu', 'deathMenu', 'loading'];
 let H = {};
 let backTo = 'mainMenu';
 let thumbs = {};
@@ -18,11 +19,13 @@ let levelMode = 'story';
 let levelWorld = 1;
 export function setThumbs(t) { thumbs = t; }
 
-// Press Start 2P no trae mayúsculas acentuadas: se reemplazan por las simples
-export const px = (t) => String(t).replace(/[ÁÉÍÓÚ]/g, (c) => ({ Á: 'A', É: 'E', Í: 'I', Ó: 'O', Ú: 'U' })[c]);
-// versión HTML: además dibuja la Ñ como una N con tilde pixelada (la de la fuente queda aplastada)
+// las fuentes de la interfaz traen tildes y Ñ: solo hace falta escapar el HTML
+export const px = (t) => String(t);
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-export const pxHtml = (t) => esc(px(t)).replace(/Ñ/g, '<span class="ene">N</span>');
+export const pxHtml = (t) => esc(t);
+// la serif de los títulos dibuja los números "a la antigua" (el 1 parece una i): van en la de máquina
+const digits = (html) => html.replace(/\d+/g, '<span class="dg">$&</span>');
+const sprite = (id, k = 4, sheet = 'idle_down') => `<span class="sprite" style="--k:${k};background-image:url(assets/char/${id}/${sheet}.png)"></span>`;
 
 export function show(id) {
   $('banner').classList.remove('show');
@@ -130,7 +133,11 @@ export function initUI(handlers) {
     if (act === 'howto') show('howtoMenu');
     if (act === 'credits') show('creditsMenu');
     if (act === 'coop') showCoop();
+    if (act === 'chars') { backTo = 'mainMenu'; renderChars(); show('charMenu'); }
   }));
+  $('survivorStrip').addEventListener('click', () => { renderChars(); show('charMenu'); });
+  updateStrip();
+  startVhsClock();
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => show(backTo === 'pauseMenu' && b.closest('#settingsMenu') ? 'pauseMenu' : 'mainMenu')));
 
   // ajustes
@@ -157,6 +164,14 @@ export function initUI(handlers) {
 
   bus.on('banner', ({ text, danger }) => banner(text, danger));
   bus.on('toast', (t) => toast(t));
+  bus.on('bark', (b) => {
+    const box = $('barks'), line = document.createElement('div');
+    line.innerHTML = `<b style="color:${b.color}">${esc(b.name)}</b> ${esc(b.text)}`;
+    box.appendChild(line);
+    while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => line.classList.add('out'), 3600);
+    setTimeout(() => line.remove(), 4400);
+  });
   bus.on('subtitle', (t) => subtitles([t], 5000));
   bus.on('objective', () => $('objective').classList.add('flash') || setTimeout(() => $('objective').classList.remove('flash'), 800));
   bus.on('coins', () => { const c = document.querySelector('.hud-coins'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); });
@@ -164,7 +179,7 @@ export function initUI(handlers) {
 }
 
 export function updateContinue() {
-  $('btnContinue').innerHTML = `<span class="arrow"></span>${save.unlocked > 1 ? 'CONTINUAR' : 'JUGAR'}`;
+  $('btnContinue').textContent = save.unlocked > 1 ? 'Continuar' : 'Jugar';
 }
 
 function renderDiffToggle(box, current, onPick, enabled = true) {
@@ -192,7 +207,7 @@ function renderToggle(box, options, current, onPick, enabled = true) {
     box.appendChild(b);
   }
 }
-const MODES = [['story', 'HISTORIA'], ['survival', 'SUPERVIVENCIA']];
+const MODES = [['story', 'Historia'], ['survival', 'Supervivencia']];
 
 function renderSurvivalCards(wrap) {
   for (const L of LEVELS.filter((q) => q.world === levelWorld)) {
@@ -200,15 +215,14 @@ function renderSurvivalCards(wrap) {
     const locked = L.world > 1 && L.id > save.unlocked;
     const c = document.createElement('button');
     c.className = `card${locked ? ' locked' : ''}`;
-    c.style.setProperty('--c', thumbs[L.id] ? `url(${thumbs[L.id]}) center/cover` : `linear-gradient(160deg, ${L.color}, #07070a)`);
     const rn = save.survival[`${L.id}_normal`], rp = save.survival[`${L.id}_pesadilla`];
     c.innerHTML = `
-      <div class="tag">${L.tag}</div>
+      <div class="photo" style="--c:${thumbs[L.id] ? `url(${thumbs[L.id]}) center/cover` : L.color}"></div>
       <div class="bests">${rn ? `<span class="best">${rn}</span>` : ''}${rp ? `<span class="best p">${rp}</span>` : ''}</div>
-      <div class="num">SUPERVIVENCIA</div>
-      <div class="name">${pxHtml(L.name.toUpperCase())}</div>
+      <div class="num">${esc(L.tag.toLowerCase())}</div>
+      <div class="cap">${esc(L.name)}</div>
       <div class="desc">${SURVIVAL_DESC[L.id]}</div>
-      <div class="lockmsg${locked ? '' : ' go'}">${locked ? 'LLEGA A ESTA NOCHE EN LA HISTORIA' : `RECORD: OLEADA ${save.survival[`${L.id}_${save.diff}`] || 0}`}</div>`;
+      <div class="lockmsg${locked ? '' : ' go'}">${locked ? 'llegá a esta noche en la historia' : `récord: oleada ${save.survival[`${L.id}_${save.diff}`] || 0}`}</div>`;
     c.addEventListener('mouseenter', () => sfx('uiHover'));
     if (!locked) c.addEventListener('click', () => { sfx('uiClick'); H.onPlaySurvival(L.id); });
     wrap.appendChild(c);
@@ -218,7 +232,7 @@ function renderSurvivalCards(wrap) {
 function renderLevels() {
   const wrap = $('levelCards');
   renderToggle($('modeToggle'), MODES, levelMode, (id) => { levelMode = id; renderLevels(); });
-  $('levelTitle').textContent = levelMode === 'survival' ? 'SUPERVIVENCIA' : 'ELEGIR NOCHE';
+  $('levelTitle').textContent = levelMode === 'survival' ? 'Registro · Supervivencia' : 'Expediente · Historia';
   renderToggle($('worldToggle'), WORLDS, levelWorld, (id) => { levelWorld = id; renderLevels(); });
   wrap.classList.add('three');
   renderDiffToggle($('diffToggle'), save.diff, (id) => { save.diff = id; persist(); renderLevels(); });
@@ -231,19 +245,97 @@ function renderLevels() {
     const c = document.createElement('button');
     c.className = `card${locked ? ' locked' : ''}`;
     const th = thumbs[L.id];
-    c.style.setProperty('--c', th ? `url(${th}) center/cover` : `linear-gradient(160deg, ${L.color}, #07070a)`);
+    const bn = save.best[bestKey(L.id, 'normal')], bp = save.best[bestKey(L.id, 'pesadilla')];
     c.innerHTML = `
-      <div class="tag">${L.tag}</div>
-      <div class="bests">${save.best[bestKey(L.id, 'normal')] ? `<span class="best">${save.best[bestKey(L.id, 'normal')]}</span>` : ''}${save.best[bestKey(L.id, 'pesadilla')] ? `<span class="best p">${save.best[bestKey(L.id, 'pesadilla')]}</span>` : ''}</div>
-      <div class="num">NOCHE ${L.id}</div>
-      <div class="name">${pxHtml(L.name.toUpperCase())}</div>
+      <div class="photo" style="--c:${th ? `url(${th}) center/cover` : L.color}"></div>
+      <div class="bests">${bn ? `<span class="best">${bn}</span>` : ''}${bp ? `<span class="best p">${bp}</span>` : ''}</div>
+      <div class="num">noche ${L.id} · ${esc(L.tag.toLowerCase())}</div>
+      <div class="cap">${esc(L.name)}</div>
       <div class="desc">${L.desc}</div>
-      ${locked ? '<div class="lockmsg">SUPERA LA NOCHE ANTERIOR</div>' : ''}`;
+      ${locked ? '<div class="lockmsg">superá la noche anterior</div>' : ''}`;
     c.addEventListener('mouseenter', () => sfx('uiHover'));
     if (!locked) c.addEventListener('click', () => { sfx('uiClick'); H.onPlayLevel(L.id); });
     wrap.appendChild(c);
   });
 }
+
+// ---------------- sobrevivientes ----------------
+function renderChars() {
+  const wrap = $('charCards');
+  wrap.innerHTML = '';
+  for (const c of CHARACTERS) {
+    const b = document.createElement('button');
+    b.className = `dossier${save.char === c.id || (!save.char && c.id === 'tomas') ? ' on' : ''}`;
+    b.innerHTML = `
+      <div class="pic">${sprite(c.id, 6)}</div>
+      <div class="dn">${c.name}</div>
+      <div class="dr">${c.role}</div>
+      <div class="db">${c.bio}</div>
+      <div class="dp"><b>${c.perk}</b>${c.perkDesc}</div>`;
+    b.addEventListener('mouseenter', () => sfx('uiHover'));
+    b.addEventListener('click', () => { sfx('uiClick'); save.char = c.id; persist(); renderChars(); updateStrip(); });
+    wrap.appendChild(b);
+  }
+}
+function updateStrip() {
+  const c = charById(save.char);
+  $('ssPortrait').innerHTML = sprite(c.id, 3);
+  $('ssName').textContent = c.name;
+  $('ssRole').textContent = `${c.role} · ${c.perk}`;
+}
+
+// reloj de la cámara de seguridad del menú
+function startVhsClock() {
+  const base = new Date(); base.setHours(3, 12, 0, 0);
+  const t0 = Date.now();
+  const tick = () => {
+    const d = new Date(base.getTime() + (Date.now() - t0));
+    $('vhsClock').textContent = d.toTimeString().slice(0, 8);
+    $('vhsDate').textContent = d.toLocaleDateString('es', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase().replace('.', '');
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+// consejos en la pantalla de carga
+const TIPS = [
+  'Los gritones llaman a la horda. Matalos antes de que te vean.',
+  'Los hinchados revientan en gas tóxico. No los mates de cerca.',
+  'Mantené E al lado de un compañero caído para levantarlo.',
+  'Revisá armarios y escritorios: casi siempre hay algo.',
+  'En Pesadilla cada bala cuenta. Usá el bate cuando puedas.',
+  'La linterna (F) te deja ver... y deja que te vean.',
+  'Los barriles rojos explotan. Los zombies no lo saben.',
+];
+export function startTips() {
+  let i = Math.floor(Math.random() * TIPS.length);
+  const show1 = () => { $('loadingTip').textContent = TIPS[i++ % TIPS.length]; };
+  show1();
+  return setInterval(show1, 2600);
+}
+
+// tarjeta de capítulo: número, título, hora y lugar, como en una película
+export function chapterCard(num, title, meta, ms = 3200) {
+  const el = $('chapter');
+  $('chNum').textContent = num; $('chTitle').textContent = title; $('chMeta').textContent = meta;
+  el.classList.remove('hidden');
+  void el.offsetWidth;
+  el.classList.add('on');
+  sfx('thunder', 0.35);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return; done = true;
+      el.classList.remove('on');
+      setTimeout(() => el.classList.add('hidden'), 900);
+      resolve();
+    };
+    setTimeout(finish, ms);
+    chapterSkip = finish;
+  });
+}
+let chapterSkip = null;
+export function skipChapter() { chapterSkip?.(); }
 
 // ---------------- HUD ----------------
 const cache = {};
@@ -271,7 +363,11 @@ export function buildHud(p) {
     $('hotbar').appendChild(s);
   });
   Object.keys(cache).forEach((k) => delete cache[k]);
-  set('hudLevel', 'innerHTML', pxHtml(`${S.level.survival ? 'SUPERVIVENCIA' : `NOCHE ${S.level.id}`} · ${S.level.name.toUpperCase()}`) + (S.diff?.id === 'pesadilla' ? ' <span class="hard">· PESADILLA</span>' : ''));
+  const ch = charById(p.char);
+  $('hudPortrait').src = `assets/char/${ch.id}/portrait.png`;
+  $('hudName').textContent = ch.name;
+  $('hudName').style.color = ch.color;
+  set('hudLevel', 'innerHTML', digits(esc(`${S.level.survival ? 'Supervivencia' : `Noche ${S.level.id}`} · ${S.level.name}`)) + (S.diff?.id === 'pesadilla' ? ' <span class="hard">· pesadilla</span>' : ''));
   updateHud(p);
 }
 
@@ -317,7 +413,7 @@ export function prompt(text) {
 let bannerT = null;
 export function banner(text, danger) {
   const b = $('banner');
-  b.innerHTML = pxHtml(text); b.classList.toggle('danger', !!danger); b.classList.add('show');
+  b.innerHTML = digits(pxHtml(text)); b.classList.toggle('danger', !!danger); b.classList.add('show');
   clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('show'), 2600);
 }
 
@@ -340,8 +436,11 @@ export function subtitles(lines, hold = 1600) {
       if (run !== subRun) return resolve();
       if (li >= lines.length) { el.classList.add('hidden'); return resolve(); }
       const line = lines[li];
+      const m = line.match(/^([A-ZÁÉÍÓÚÑ]{3,}):\s*/);
+      const who = m ? m[1] : null, body = m ? line.slice(m[0].length) : line;
       ci++;
-      el.textContent = line.slice(0, ci);
+      el.innerHTML = (who ? `<span class="speaker">${esc(who[0] + who.slice(1).toLowerCase())}</span>` : '') + esc(body.slice(0, ci));
+      if (ci >= body.length) ci = line.length;
       if (ci % 3 === 0) sfx('uiHover', 0.25);
       if (ci >= line.length) { li++; ci = 0; setTimeout(tick, hold); } else setTimeout(tick, 28);
     };
@@ -380,15 +479,15 @@ export function openShop(p, items) {
 
 // ---------------- resultados ----------------
 // role: null (un jugador) | 'host' | 'client'
-const endLabel = (role) => (role === 'host' ? 'VOLVER A LA SALA' : role === 'client' ? 'SALIR DE LA SALA' : 'MENU');
+const endLabel = (role) => (role === 'host' ? 'volver a la sala' : role === 'client' ? 'salir de la sala' : 'menú');
 export function showResults(stats, rank, hasNext, role = null) {
   $('resultsRank').textContent = rank;
   $('resultsStats').innerHTML = stats.map(([k, v]) => `<span>${pxHtml(k)}</span><span>${pxHtml(v)}</span>`).join('');
   $('btnNext').classList.toggle('hidden', !hasNext || role === 'client');
   $('resultsNote').classList.toggle('hidden', role !== 'client');
   $('btnResultsMenu').textContent = endLabel(role);
-  $('resultsTitle').textContent = hasNext ? 'NOCHE SUPERADA' : 'SOBREVIVIERON';
-  if (!role && !hasNext) $('resultsTitle').textContent = 'SOBREVIVISTE';
+  $('resultsTitle').textContent = hasNext ? 'Noche superada' : 'Sobrevivieron';
+  if (!role && !hasNext) $('resultsTitle').textContent = 'Sobreviviste';
   show('resultsMenu');
 }
 export function showDeath(stats, role = null, title = null) {
@@ -396,12 +495,12 @@ export function showDeath(stats, role = null, title = null) {
   $('btnRetry').classList.toggle('hidden', role === 'client');
   $('deathNote').classList.toggle('hidden', role !== 'client');
   $('btnDeathMenu').textContent = endLabel(role);
-  document.querySelector('#deathMenu .screen-title').textContent = px(title || (role ? 'CAYO TODO EL EQUIPO' : 'TE ATRAPARON'));
+  document.querySelector('#deathMenu .screen-title').textContent = px(title || (role ? 'CAYÓ TODO EL EQUIPO' : 'TE ATRAPARON'));
   show('deathMenu');
 }
 export function pauseOptions(role) {
   $('btnRestart').classList.toggle('hidden', role === 'client');
-  $('btnQuit').textContent = role ? 'SALIR DE LA SALA' : 'MENU PRINCIPAL';
+  $('btnQuit').textContent = role ? 'salir de la sala' : 'menú principal';
 }
 export function closeOverlaysForOutro() { hideOverlays(); }
 
@@ -424,20 +523,20 @@ function initCoop() {
   const name = $('coopName');
   name.value = save.name || '';
   const getName = () => {
-    const n = name.value.trim().toUpperCase().replace(/[^A-Z0-9Ñ ]/g, '').slice(0, 10) || 'JUGADOR';
+    const n = name.value.trim().replace(/[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ ]/g, '').slice(0, 10) || 'Jugador';
     save.name = n; persist();
     return n;
   };
   $('coopCode').addEventListener('input', (e) => { e.target.value = cleanCode(e.target.value); });
   $('btnCreateRoom').addEventListener('click', async () => {
-    status('Creando sala...');
-    try { await H.onCoopCreate(getName()); status(''); } catch (e) { status(e.message, true); }
+    status('Abriendo frecuencia...');
+    try { await H.onCoopCreate(getName(), save.char || 'tomas'); status(''); } catch (e) { status(e.message, true); }
   });
   const join = async () => {
     const code = cleanCode($('coopCode').value);
     if (code.length !== 5) { status('El código tiene 5 letras o números', true); return; }
-    status('Conectando...');
-    try { await H.onCoopJoin(code, getName()); status(''); } catch (e) { status(e.message, true); }
+    status('Sintonizando...');
+    try { await H.onCoopJoin(code, getName(), save.char || 'tomas'); status(''); } catch (e) { status(e.message, true); }
   };
   $('btnJoinRoom').addEventListener('click', join);
   $('coopCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
@@ -454,7 +553,7 @@ export function renderLobby() {
   $('coopJoin').classList.toggle('hidden', inRoom);
   if (!inRoom) { chatLog.length = 0; $('lobbyChatLog').innerHTML = ''; $('chatLog').innerHTML = ''; }
   $('coopLobby').classList.toggle('hidden', !inRoom);
-  $('btnCoopBack').textContent = inRoom ? 'SALIR DE LA SALA' : 'VOLVER';
+  $('btnCoopBack').textContent = inRoom ? 'salir de la sala' : 'volver';
   if (!inRoom) return;
   $('roomCode').textContent = room.code;
   const slots = $('lobbySlots');
@@ -465,9 +564,22 @@ export function renderLobby() {
     d.className = `pslot${p ? '' : ' empty'}`;
     d.style.setProperty('--pc', TINT_CSS[i]);
     d.innerHTML = p
-      ? `<span class="dot"></span><span class="pn">${p.name}</span>${i === 0 ? '<span class="ptag">ANFITRION</span>' : ''}${i === room.me ? '<span class="ptag you">VOS</span>' : ''}`
-      : '<span class="dot"></span><span class="pn">ESPERANDO...</span>';
+      ? `${sprite(p.char || 'tomas', 2.6)}<span class="who"><span class="pn">${esc(p.name)}</span><span class="pc">${charById(p.char).name} · ${charById(p.char).role}</span>${i === 0 ? '<span class="ptag">anfitrión</span>' : ''}${i === room.me ? '<span class="ptag you">vos</span>' : ''}</span>`
+      : '<span class="who"><span class="pn">esperando señal...</span></span>';
     slots.appendChild(d);
+  }
+  const mine = room.players.find((q) => q.idx === room.me);
+  const pick = $('lobbyPick');
+  pick.innerHTML = '';
+  for (const c of CHARACTERS) {
+    const b = document.createElement('button');
+    const takenBy = room.players.find((q) => q.char === c.id && q.idx !== room.me);
+    b.className = mine?.char === c.id ? 'on' : '';
+    b.disabled = !!takenBy || room.inGame;
+    b.title = takenBy ? `lo eligió ${takenBy.name}` : `${c.name} · ${c.perk}`;
+    b.innerHTML = `${sprite(c.id, 2.2)}<span>${c.name}</span>`;
+    b.addEventListener('click', () => { sfx('uiClick'); save.char = c.id; persist(); updateStrip(); H.onCoopPick(c.id); });
+    pick.appendChild(b);
   }
   const host = room.role === 'host';
   const lv = $('lobbyLevels');
@@ -477,7 +589,7 @@ export function renderLobby() {
     b.className = `lvl${room.level === L.id ? ' on' : ''}`;
     b.disabled = !host;
     if (thumbs[L.id]) b.style.backgroundImage = `url(${thumbs[L.id]})`;
-    b.innerHTML = `<span>${room.mode === 'survival' ? 'MAPA' : 'NOCHE'} ${L.id}</span><b>${pxHtml(L.name.toUpperCase())}</b>`;
+    b.innerHTML = `<span>${room.mode === 'survival' ? 'mapa' : 'noche'} ${L.id}</span><b>${esc(L.name)}</b>`;
     b.addEventListener('click', () => { sfx('uiClick'); H.onCoopLevel(L.id); });
     lv.appendChild(b);
   }
@@ -485,5 +597,5 @@ export function renderLobby() {
   renderToggle($('lobbyMode'), MODES, room.mode, (id) => H.onCoopMode(id), host);
   $('btnStartCoop').classList.toggle('hidden', !host);
   $('lobbyWait').classList.toggle('hidden', host);
-  $('btnStartCoop').textContent = room.players.length > 1 ? `EMPEZAR (${room.players.length} JUGADORES)` : 'EMPEZAR SOLO';
+  $('btnStartCoop').textContent = room.players.length > 1 ? `empezar · ${room.players.length} sobrevivientes` : 'empezar solo';
 }

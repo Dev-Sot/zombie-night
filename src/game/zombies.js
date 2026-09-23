@@ -4,6 +4,7 @@ import { S, rand, pick, dist, bus } from '../core/state.js';
 import { sfx } from '../core/audio.js';
 import { moveEntity, lineClear, flowTarget, bulletSolidAt, updateFlow, cellFree, openDoor } from './world.js';
 import { npcTargets } from './npc.js';
+import { bark, anyone } from './barks.js';
 import { blood, splat, float, shake, burst, light } from './fx.js';
 import { hurtPlayer } from './player.js';
 import { dropLoot, addPickup } from './pickups.js';
@@ -229,6 +230,7 @@ function wander(z) {
 function scream(z) {
   z.screamed = true; z.state = 'scream'; z.anim = 0;
   sfx('scream');
+  bark(anyone(), 'scream');
   shake(4);
   light(z.x, z.y - 10, 170, 'rgba(210,220,255,', 40);
   float(z.x, z.y - 30, 'GRITO', '#e8e2c8');

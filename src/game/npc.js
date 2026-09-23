@@ -66,17 +66,17 @@ export function npcDrawables() {
 }
 
 function drawNpc(n) {
-  const f = n.filter || 'none';
-  if (n.dead) { frame(`char/death_${n.deathDir || 'side'}`, Math.min(5, n.deadT / 6), n.x, n.y, { filter: f }); return; }
+  const c = n.sprite || 'tomas', f = n.filter || 'none';
+  if (n.dead) { frame(`char/${c}/death_${n.deathDir || 'side'}`, Math.min(5, n.deadT / 6), n.x, n.y, { filter: f }); return; }
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath(); ctx.ellipse(sx(n.x), sy(n.y), 6, 2.5, 0, 0, Math.PI * 2); ctx.fill();
   const blink = n.invuln > 0 && Math.floor(S.t / 3) % 2 === 0;
   if (n.static) {
     // sentado y herido: cuadro quieto, un poco más bajo
-    frame('char/idle_down', 0, n.x, n.y + 3, { filter: f });
+    frame(`char/${c}/idle_down`, 0, n.x, n.y + 3, { filter: f });
     ctx.fillStyle = '#7a1515'; ctx.fillRect(sx(n.x) + 1, sy(n.y) - 4, 3, 2);
   } else {
-    frame(n.moving ? `char/run_${n.dir}` : `char/idle_${n.dir}`, n.moving ? n.walk : S.t / 9, n.x, n.y, { filter: blink ? 'brightness(2.2)' : f });
+    frame(n.moving ? `char/${c}/run_${n.dir}` : `char/${c}/idle_${n.dir}`, n.moving ? n.walk : S.t / 9, n.x, n.y, { filter: blink ? 'brightness(2.2)' : f });
   }
   const name = n.name.toUpperCase(), w = textWidth(name);
   pixelText(ctx, name, sx(n.x) - Math.floor(w / 2) + 1, sy(n.y) - 29, '#000');

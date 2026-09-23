@@ -76,7 +76,7 @@ const LEVELS_W1 = [
       { type: 'reach', x: 900, y: 660, r: 24, text: 'Llevá el combustible al generador',
         onDone: { marker: 'gen', lights: true, sfx: 'generator', banner: 'LA LUZ ATRAE A LA HORDA', danger: true, surge: 14, music: 'combat', shake: 6 } },
       { type: 'survive', seconds: 45, text: 'Aguantá hasta que la red se estabilice', at: { 20: { surge: 8 } },
-        onDone: { banner: 'LA LUZ VOLVIO', music: 'explore' } },
+        onDone: { banner: 'LA LUZ VOLVIÓ', music: 'explore' } },
     ],
     outro: ['La luz volvió al barrio.', 'Pero la radio sigue muda. Nadie responde.', 'Tengo que llegar a la comisaría del centro.'],
   },

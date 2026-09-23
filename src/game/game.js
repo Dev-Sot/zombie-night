@@ -19,6 +19,7 @@ import { room, broadcast, broadcastLobby, sendToHost, leaveRoom, setNetHandlers 
 import { encodeSnapshot, applySnapshot, interpolate } from '../net/sync.js';
 import { pingTarget, addPing, updatePings, drawPings } from './social.js';
 import { survivalLevel, initSurvival, updateSurvival } from './survival.js';
+import { bark } from './barks.js';
 import * as ui from '../ui/ui.js';
 
 // Modos: menu (escena de fondo) · intro · play · shop · paused · outro · dead · results
@@ -88,7 +89,9 @@ export function levelThumbs() {
   const out = {};
   for (const L of LEVELS) {
     resetState();
-    S.level = L;
+    // las fotos del expediente van "con flash": menos oscuridad que en la partida
+    S.level = { ...L, darkness: Math.min(L.darkness ?? 0.9, 0.55) };
+    S.diff = DIFFS.normal;
     S.world = buildWorld(L);
     S.world.lamps.forEach((l) => { l.lit = true; l.on = true; });
     snapCamera(...THUMB_CAM[L.id]);
@@ -123,13 +126,13 @@ export function startLevel(id, opts = {}) {
       net.me = roster.findIndex((r) => r.idx === room.me);
       S.players = roster.map((r, i) => {
         const ctrl = i === net.me ? localControl : remoteControl();
-        const p = createPlayer(L, ctrl, r.idx, r.name);
+        const p = createPlayer(L, ctrl, r.idx, r.name, r.char);
         if (net.role === 'host' && i !== net.me) G.remote.set(r.id, p);
         return p;
       });
     } else {
       net.role = null; net.me = 0;
-      S.players = [createPlayer(L, localControl)];
+      S.players = [createPlayer(L, localControl, 0, '', save.char || 'tomas')];
     }
     const p = me();
     if (net.role === 'client') {
@@ -153,13 +156,34 @@ export function startLevel(id, opts = {}) {
     ui.hideOverlays();
     ui.buildHud(p);
     snapCamera(p.x, p.y);
-    if (!mp() && !L.survival && save.settings.cine && L.intro?.length) beginIntro(L, p);
-    else {
-      G.mode = 'play'; G.bars = 0; ui.setHud(true);
-      levelBanner();
-      if (mp()) ui.subtitles(L.intro || [], 1400);
-    }
+    const go = () => {
+      if (!mp() && !L.survival && save.settings.cine && L.intro?.length) beginIntro(L, p);
+      else {
+        G.mode = 'play'; G.bars = 0; ui.setHud(true);
+        levelBanner();
+        if (mp()) ui.subtitles(L.intro || [], 1400);
+        startBark();
+      }
+    };
+    // tarjeta de capítulo (en online siempre: marca el arranque para todos)
+    if (save.settings.cine || mp()) {
+      G.mode = 'chapter'; G.bars = 0; ui.setHud(false);
+      const [num, title, meta] = chapterText(L);
+      ui.chapterCard(num, title, meta).then(() => { if (G.mode === 'chapter') go(); });
+    } else go();
   });
+}
+
+const NUMS = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho'];
+const CHAPTERS = {
+  1: ['22:47', 'Barrio norte'], 2: ['06:10', 'Centro · comisaría'], 3: ['23:58', 'Granja Robles, afueras'],
+  4: ['03:12', 'Parque frente al San Rafael'], 5: ['04:40', 'Hospital San Rafael'], 6: ['05:30', 'Estacionamiento de emergencias'],
+};
+function chapterText(L) {
+  if (L.survival) return ['SUPERVIVENCIA', L.name, `oleadas sin fin · ${S.diff.name.toLowerCase()}`];
+  const [time, place] = CHAPTERS[L.id] || ['', ''];
+  const world = L.id === 4 ? 'MUNDO DOS · ' : L.id === 1 ? 'MUNDO UNO · ' : '';
+  return [`${world}NOCHE ${NUMS[L.id - 1].toUpperCase()}`, L.name, `${time} · ${place}${S.diff.id === 'pesadilla' ? ' · pesadilla' : ''}`];
 }
 
 function beginIntro(L, p) {
@@ -181,11 +205,22 @@ function endIntro() {
   G.mode = 'play';
   ui.setHud(true);
   levelBanner();
+  startBark();
+}
+// el sobreviviente dice algo al arrancar (en online lo decide el anfitrión)
+function startBark() {
+  if (net.role === 'client') return;
+  setTimeout(() => {
+    if (G.mode !== 'play') return;
+    net.capture = net.role === 'host';
+    bark(S.players[Math.floor(Math.random() * S.players.length)], 'start', true);
+    net.capture = false;
+  }, 3200);
 }
 
 function levelBanner() {
   const L = S.level, hard = S.diff.id !== 'normal';
-  const head = L.survival ? 'SUPERVIVENCIA' : `NOCHE ${L.id}`;
+  const head = L.survival ? 'SUPERVIVENCIA' : `NOCHE ${NUMS[L.id - 1].toUpperCase()}`;
   ui.banner(`${head} · ${L.name.toUpperCase()}${hard ? ` · ${S.diff.name}` : ''}`, hard);
 }
 
@@ -234,7 +269,7 @@ function stats() {
       ['DIFICULTAD', S.diff.name],
       ['TIEMPO', `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`],
       ['BAJAS', S.kills],
-      ['PRECISION', S.shots ? `${Math.round(S.hits / S.shots * 100)}%` : '-'],
+      ['PRECISIÓN', S.shots ? `${Math.round(S.hits / S.shots * 100)}%` : '-'],
       [mp() ? 'DAÑO PROMEDIO' : 'DAÑO RECIBIDO', Math.round(dmg)],
       ['MONEDAS', coins],
     ],
@@ -265,13 +300,13 @@ function showDeath() {
   canvas.classList.add('dead');
   ui.setHud(false);
   ui.prompt(null);
-  let rows = stats().rows, title = G.failNpc ? `${G.failNpc.name.toUpperCase()} NO SOBREVIVIO` : null;
+  let rows = stats().rows, title = G.failNpc ? `${G.failNpc.name.toUpperCase()} NO SOBREVIVIÓ` : null;
   if (S.level.survival) {
     const key = survivalKey();
     const isNew = recordSurvival(key, S.surv.wave);
-    rows = [['OLEADA', S.surv.wave], ['RECORD', `${save.survival[key] || 0}${isNew ? '  NUEVO' : ''}`], ...rows.filter(([k]) => k !== 'PRECISION')];
+    rows = [['OLEADA', S.surv.wave], ['RÉCORD', `${save.survival[key] || 0}${isNew ? '  NUEVO' : ''}`], ...rows.filter(([k]) => k !== 'PRECISIÓN')];
     title = `CAYERON EN LA OLEADA ${S.surv.wave}`;
-    if (!mp()) title = `CAISTE EN LA OLEADA ${S.surv.wave}`;
+    if (!mp()) title = `CAÍSTE EN LA OLEADA ${S.surv.wave}`;
   }
   if (net.role === 'host') broadcast({ t: 'end', win: false, rows, title, surv: S.level.survival ? [survivalKey(), S.surv.wave] : null });
   ui.showDeath(rows, net.role, title);
@@ -377,7 +412,7 @@ net.rec = null;
 sfxHook.fn = (name, vol, delay) => {
   if (net.role === 'host' && net.capture && !NO_FORWARD.has(name)) evBuf.push(['sfx', [name, vol, delay]]);
 };
-for (const ev of ['banner', 'subtitle', 'lightsOn', 'objective', 'teamToast']) {
+for (const ev of ['banner', 'subtitle', 'lightsOn', 'objective', 'teamToast', 'bark']) {
   bus.on(ev, (data) => { if (net.role === 'host' && G.mode !== 'menu') evBuf.push(['bus', [ev, data]]); });
 }
 bus.on('teamToast', (t) => ui.toast(t));
@@ -394,9 +429,9 @@ export function toLobby() {
 export function hostStart(level) {
   room.inGame = true; room.level = level;
   broadcastLobby();
-  const roster = room.players.map(({ idx, name, id }) => ({ idx, name, id }));
+  const roster = room.players.map(({ idx, name, id, char }) => ({ idx, name, id, char }));
   const survival = room.mode === 'survival';
-  broadcast({ t: 'start', level, diff: room.diff, survival, roster: roster.map(({ idx, name }) => ({ idx, name })) });
+  broadcast({ t: 'start', level, diff: room.diff, survival, roster: roster.map(({ idx, name, char }) => ({ idx, name, char })) });
   startLevel(level, { roster, diff: room.diff, survival });
 }
 
@@ -560,7 +595,7 @@ function updateLamps() {
 }
 
 // ---------------- puertas y armarios ----------------
-const LOCK_MSG = { keycard: 'NECESITAS LA TARJETA DE ACCESO', power: 'NO HAY ENERGIA' };
+const LOCK_MSG = { keycard: 'NECESITÁS LA TARJETA DE ACCESO', power: 'NO HAY ENERGÍA' };
 function nearInteractable(p) {
   let best = null, bd = 26;
   for (const D of S.world.doors) {
@@ -600,7 +635,7 @@ function interactPrompt(p) {
   if (!it) return null;
   if (it.box) return 'E  REVISAR';
   const miss = doorLocked(it.door);
-  return miss.length ? (miss[0] === 'keycard' ? 'CERRADA · FALTA LA TARJETA' : 'CERRADA · SIN ENERGIA') : 'E  ABRIR';
+  return miss.length ? (miss[0] === 'keycard' ? 'CERRADA · FALTA LA TARJETA' : 'CERRADA · SIN ENERGÍA') : 'E  ABRIR';
 }
 
 // avisos de interacción del jugador local
@@ -609,7 +644,7 @@ function localPrompt(p) {
   const hint = interactHint(p);
   if (hint) return hint;
   const fallen = S.players.find((o) => o !== p && o.dead && !o.boarded && dist(o.x, o.y, p.x, p.y) < 20);
-  if (fallen) return 'MANTENE E  REVIVIR';
+  if (fallen) return 'MANTENÉ E  LEVANTAR';
   return interactPrompt(p) || (nearShop(p) ? 'E  TIENDA' : null);
 }
 
@@ -637,6 +672,7 @@ function step() {
   if (m === 'shop' && ((localControl.pressed('KeyE') && !localControl.pressed('PadA')) || localControl.pressed('Escape'))) resume();
   if (m === 'paused' && localControl.pressed('Escape')) resume();
   // en un jugador los menús congelan la partida; en red la partida sigue
+  if (m === 'chapter') { if (!mp() && anyPressed()) ui.skipChapter(); endFrame(); return; }
   if (m === 'results' || (!mp() && OVERLAY_MODES.has(m))) { endFrame(); return; }
   S.t++;
   updateWeather();

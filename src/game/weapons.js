@@ -5,6 +5,7 @@ import { bulletSolidAt } from './world.js';
 import { blood, sparks, casing, light, shake, burst } from './fx.js';
 import { damageZombie } from './zombies.js';
 import { hitProp } from './props.js';
+import { bark } from './barks.js';
 
 // sprite: arte de costado apuntando a la derecha; grip = punto de la mano
 // (fracción del sprite), ang0 = hacia dónde "apunta" el sprite sin rotar.
@@ -44,9 +45,10 @@ export function tryFire(p) {
   p.fireCd = w.cd;
   const m = muzzlePos(p);
   for (let i = 0; i < w.pellets; i++) {
-    const a = p.aim + rand(-w.spread, w.spread) * (w.pellets > 1 ? 1 : 0.5);
+    const spread = w.spread * (p.mods?.spread || 1);
+    const a = p.aim + rand(-spread, spread) * (w.pellets > 1 ? 1 : 0.5);
     const sp = w.speed * rand(0.9, 1.1);
-    S.bullets.push({ x: m.x, y: m.y, px: m.x, py: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: w.dmg, knock: w.knock, life: 48, owner: p });
+    S.bullets.push({ x: m.x, y: m.y, px: m.x, py: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: w.dmg * (p.mods?.gunDmg || 1), knock: w.knock, life: 48, owner: p });
     if (net.rec) net.rec('shot', [m.x, m.y, Math.cos(a) * sp, Math.sin(a) * sp]);
   }
   S.shots++;
@@ -74,7 +76,7 @@ function swing(p, w) {
     let da = Math.atan2(z.y - p.y, z.x - p.x) - p.aim;
     da = Math.atan2(Math.sin(da), Math.cos(da));
     if (Math.abs(da) > w.arc / 2) continue;
-    damageZombie(z, w.dmg, p.aim, w.knock, p);
+    damageZombie(z, w.dmg * (p.mods?.melee || 1), p.aim, w.knock, p);
     hit = true;
   }
   for (const pr of S.world.props) {
@@ -88,7 +90,8 @@ export function startReload(p) {
   const w = WEAPONS[p.inv.cur];
   if (w.melee || p.reloadT > 0) return;
   if (p.inv.mag[p.inv.cur] >= w.mag || p.inv.ammo[w.ammo] <= 0) return;
-  p.reloadT = w.reload;
+  p.reloadT = Math.round(w.reload * (p.mods?.reload || 1));
+  bark(p, 'reload');
   sfx(p.inv.cur === 'rifle' ? 'reloadRifle' : 'reload');
 }
 
