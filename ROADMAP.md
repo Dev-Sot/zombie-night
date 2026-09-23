@@ -32,11 +32,41 @@ Plan de desarrollo por fases. Cada fase termina desplegada en Vercel.
       20 Hz y predicen su propio movimiento.
 - [x] Revivir compañeros, colores y nombres por jugador, dificultad escalada por equipo.
 
-## Fase 4 — Pulido (siguiente)
-- [ ] Chat de sala y emotes rápidos.
-- [ ] Audio grabado con licencia libre (CC0) como opción sobre la síntesis
-      (`assets/audio/manifest.json`).
-- [ ] Balance de dificultad con partidas reales.
-- [ ] Controles táctiles / gamepad.
+## Fase 4 — Pesadilla (completa)
+- [x] Dificultad Pesadilla y progresión de armas.
+- [x] Modo supervivencia con récords.
+- [x] Chat de sala y marcas en el mapa.
+- [x] Joystick y controles táctiles.
+- [x] Sonido real CC0 (disparos, zombies, recargas, música).
+- [x] Hacha, zombie gritón y zombie hinchado.
+
+## Fase 5 — Mundo 2: El Hospital (siguiente)
+El helicóptero no llega lejos: se queda sin combustible y cae en el distrito
+del hospital. Por la radio se escucha a Lucía, una enfermera atrapada en la
+sala de cuarentena del Hospital San Rafael.
+
+**Noche 4 · Aterrizaje forzoso.** Parque destruido junto al hospital. El
+piloto quedó herido: hay que conseguirle un botiquín en la farmacia de la
+esquina (primer interior con puertas) y defender el helicóptero caído.
+
+**Noche 5 · San Rafael.** El hospital por dentro: pasillos, habitaciones con
+puertas que se abren con E, armarios para revisar, y la tarjeta de acceso a
+cuarentena. Hay que restablecer el generador de emergencia para abrir las
+puertas eléctricas. Luces que parpadean y zombies con uniforme de enfermero.
+
+**Noche 6 · La salida.** Escoltar a Lucía (un personaje que te sigue y al que
+los zombies pueden atrapar) hasta la ambulancia del estacionamiento. Jefe:
+el Paciente Cero.
+
+Mecánicas nuevas que trae:
+- [ ] Interiores: techos que desaparecen al entrar y puertas que se abren con E.
+- [ ] Contenedores para revisar (armarios, cajones) con botín al azar.
+- [ ] Puertas cerradas con llave o tarjeta.
+- [ ] Personajes a rescatar y escoltar (NPC con su propia IA).
+- [ ] Jefe nuevo: el Paciente Cero.
+- [ ] Selector de mundos en el menú.
+
+## Más adelante
 - [ ] Servidor TURN propio para redes muy restrictivas (hoy se usan los STUN públicos).
-- [ ] Nuevas noches y modo supervivencia infinita.
+- [ ] Balance fino de dificultad con partidas reales.
+- [ ] Logros y estadísticas globales.

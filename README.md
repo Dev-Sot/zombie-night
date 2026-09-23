@@ -47,14 +47,23 @@ helicóptero. Cada noche tiene su clima, su historia y su forma de terminar.
   defender una zona, sobrevivir, jefe final) en vez de oleadas infinitas.
 - **Cooperativo online de 2 a 4 jugadores**: uno crea una sala, comparte un
   código de 5 letras (o un enlace) y el resto se une desde el navegador. Si
-  un compañero cae, se lo revive manteniendo **E** a su lado.
+  un compañero cae, se lo revive manteniendo **E** a su lado. Chat de sala y
+  marcas en el mapa para coordinar.
+- **Dos dificultades**: Normal y **Pesadilla** (zombies más duros y rápidos,
+  menos balas, todo más caro), con mejor rango guardado para cada una.
+- **Modo supervivencia**: oleadas infinitas en los tres mapas, el Gigante cada
+  10 oleadas, suministros cada 5 y récord por mapa y dificultad.
+- **Teclado y mouse, joystick o celular**: controles de doble stick con
+  joystick y joysticks táctiles en el teléfono.
 - **Presentación cinematográfica**: franjas de cine, travelling de cámara al
   objetivo, subtítulos, cámara lenta, viñeta y grano de película, y
   resultados con rango C / B / A / S.
-- **Arsenal e inventario**: bate, pistola, escopeta y rifle automático con el
-  arma visible en la mano, vendas y botiquines, y una tienda con monedas.
-- **Seis tipos de zombie**: caminante, corredor, lanzador de hachas, bruto,
-  tóxico y el Gigante. Rodean los edificios buscando el camino más corto.
+- **Arsenal e inventario**: bate, hacha, pistola, escopeta y rifle automático
+  con el arma visible en la mano. Las armas se encuentran o se compran: no
+  vienen todas de entrada.
+- **Ocho tipos de zombie**: caminante, corredor, lanzador de hachas, bruto,
+  tóxico, **gritón** (llama a la horda), **hinchado** (revienta en gas tóxico)
+  y el Gigante. Rodean los edificios buscando el camino más corto.
 - **Mapas en perspectiva 3/4**: calles, veredas, cruces peatonales, edificios
   con techo y fachada, autos como cobertura y barriles que explotan en cadena.
 - **Iluminación dinámica**: linterna, faroles que titilan, fogonazos, bengalas
@@ -71,19 +80,26 @@ helicóptero. Cada noche tiene su clima, su historia y su forma de terminar.
 | **Mouse / clic** | apuntar / disparar |
 | **Espacio** | esquivar |
 | **R** | recargar |
-| **1-4 / rueda** | cambiar arma |
+| **1-5 / rueda** | cambiar arma |
 | **Q** | curarse |
 | **E** | interactuar / tienda |
 | **Mantener E** | revivir a un compañero |
 | **F** | linterna |
+| **G / clic del medio** | marcar un lugar |
+| **T / Enter** | chat (online) |
 | **ESC** | pausa |
+
+**Joystick:** stick izquierdo mueve, derecho apunta, RT dispara, A usar,
+B esquivar, X recargar, Y curar, LB/RB cambian de arma, Start pausa.
+**Celular:** joystick izquierdo para moverse, derecho para apuntar y disparar,
+botones de acción a la derecha.
 
 ### Jugar con amigos
 
 1. En el menú principal, entrá a **JUNTOS** y tocá **CREAR SALA**.
 2. Pasale el código (o el botón **COPIAR ENLACE**) a tus amigos.
 3. Ellos entran a **JUNTOS**, escriben el código y tocan **UNIRSE**.
-4. El anfitrión elige la noche y toca **EMPEZAR**.
+4. El anfitrión elige modo (historia o supervivencia), noche y dificultad, y toca **EMPEZAR**.
 
 No hace falta cuenta ni instalar nada. La conexión es directa entre
 navegadores (WebRTC); el anfitrión simula la partida y los demás reciben el
@@ -109,12 +125,13 @@ python -m http.server 8080
 index.html, styles.css   interfaz (menús, HUD, sala) en DOM
 src/main.js              arranque: carga de sprites, UI y bucle
 src/core/                motor: render, input, audio, assets, guardado
-src/game/                juego: mundo, jugador, armas, zombies, objetivos, niveles
+src/game/                juego: mundo, jugador, armas, zombies, objetivos, niveles,
+                         dificultad, supervivencia, marcas
 src/net/                 multijugador: salas (net.js) y snapshots (sync.js)
 src/ui/ui.js             menús, HUD, tienda, subtítulos, sala
 assets/                  sprites y audio opcional
 docs/                    capturas
-tools/                   importador de assets y chequeo de sintaxis
+tools/                   importadores de sprites y audio, chequeo de sintaxis
 ```
 
 Los niveles son datos en [`src/game/levels.js`](src/game/levels.js): un nivel

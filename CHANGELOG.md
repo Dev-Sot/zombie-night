@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5 — Pesadilla
+- Dificultad Pesadilla y progresión de armas (se encuentran o se compran).
+- Modo supervivencia con oleadas infinitas, suministros y récords.
+- Chat de sala y marcas en el mapa.
+- Joystick y controles táctiles para celular.
+- Sonido real: disparos, recargas, zombies y música (CC0).
+- Hacha, zombie gritón y zombie hinchado.
+- Cercas de alambre nuevas, Ñ pixelada y arreglos de interfaz.
+
 ## v0.4 — Juntos
 - Cooperativo online de 2 a 4 jugadores con salas por código y enlace de
   invitación (WebRTC, sin servidor propio).
