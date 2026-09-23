@@ -126,7 +126,9 @@ const SFX = {
   land(t) { nz('lowpass', 800, t, 0.12, 0.15); },
 };
 
+export const sfxHook = { fn: null };
 export function sfx(name, vol = 1) {
+  sfxHook.fn?.(name, vol);
   if (!ctx || vol <= 0.01) return;
   const t = now();
   if (buffers[name]) {

@@ -1,47 +1,64 @@
 import { GW, GH } from '../core/config.js';
 import { ctx, lctx, lightCanvas, sx, sy, frame, onScreen } from '../core/render.js';
 import { pixelText, textWidth } from '../core/pixelfont.js';
-import { S, rand } from '../core/state.js';
+import { S, rand, net } from '../core/state.js';
 import { sfx } from '../core/audio.js';
 
 export const settings = { shake: true };
 
+// Solo se graba la llamada de más afuera (blood llama a burst/splat: se
+// reenvía "blood" y el cliente recrea todo lo demás).
+let depth = 0;
+function R(name, args, fn) {
+  if (depth === 0 && net.capture && net.rec) net.rec(name, args);
+  depth++;
+  try { fn(); } finally { depth--; }
+}
+
 // ---------------- partículas ----------------
 export function burst(x, y, n, o = {}) {
-  for (let i = 0; i < n; i++) {
-    const a = o.angle != null ? o.angle + rand(-(o.spread ?? 0.6), o.spread ?? 0.6) : rand(0, Math.PI * 2);
-    const sp = rand(o.speedMin ?? 0.4, o.speed ?? 2);
-    S.particles.push({
-      x, y, z: o.z ?? 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(0.2, o.lift ?? 1.4),
-      life: rand(18, 32) * (o.lifeMul ?? 1), max: 32 * (o.lifeMul ?? 1), color: o.color || '#8e1c1c',
-      size: o.size ?? (Math.random() < 0.3 ? 2 : 1), type: o.type || 'blood', grav: o.grav ?? 0.12,
-    });
-  }
+  R('burst', [x, y, n, o], () => {
+    for (let i = 0; i < n; i++) {
+      const a = o.angle != null ? o.angle + rand(-(o.spread ?? 0.6), o.spread ?? 0.6) : rand(0, Math.PI * 2);
+      const sp = rand(o.speedMin ?? 0.4, o.speed ?? 2);
+      S.particles.push({
+        x, y, z: o.z ?? 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(0.2, o.lift ?? 1.4),
+        life: rand(18, 32) * (o.lifeMul ?? 1), max: 32 * (o.lifeMul ?? 1), color: o.color || '#8e1c1c',
+        size: o.size ?? (Math.random() < 0.3 ? 2 : 1), type: o.type || 'blood', grav: o.grav ?? 0.12,
+      });
+    }
+  });
 }
 
 export function blood(x, y, angle, n = 8) {
-  burst(x, y, n, { angle, spread: 0.7, speed: 2.2, color: Math.random() < 0.5 ? '#8e1c1c' : '#b02a2a', type: 'blood' });
-  if (Math.random() < 0.6) splat(x + Math.cos(angle) * 6, y + Math.sin(angle) * 6, 3);
+  R('blood', [x, y, angle, n], () => {
+    burst(x, y, n, { angle, spread: 0.7, speed: 2.2, color: Math.random() < 0.5 ? '#8e1c1c' : '#b02a2a', type: 'blood' });
+    if (Math.random() < 0.6) splat(x + Math.cos(angle) * 6, y + Math.sin(angle) * 6, 3);
+  });
 }
 
 export function splat(x, y, size = 4) {
-  const pix = [];
-  const n = size * 5;
-  for (let i = 0; i < n; i++) {
-    const a = rand(0, Math.PI * 2), r = Math.pow(Math.random(), 0.7) * size * 1.6;
-    pix.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r * 0.7), Math.random() < 0.3 ? '#5e1010' : '#7a1515']);
-  }
-  S.decals.push({ x, y, pix, a: 0.85 });
-  if (S.decals.length > 320) S.decals.shift();
+  R('splat', [x, y, size], () => {
+    const pix = [];
+    const n = size * 5;
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, Math.PI * 2), r = Math.pow(Math.random(), 0.7) * size * 1.6;
+      pix.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r * 0.7), Math.random() < 0.3 ? '#5e1010' : '#7a1515']);
+    }
+    S.decals.push({ x, y, pix, a: 0.85 });
+    if (S.decals.length > 320) S.decals.shift();
+  });
 }
 
 export function scorch(x, y) {
-  const pix = [];
-  for (let i = 0; i < 90; i++) {
-    const a = rand(0, Math.PI * 2), r = Math.pow(Math.random(), 0.6) * 16;
-    pix.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r * 0.7), Math.random() < 0.5 ? '#141210' : '#2a2320']);
-  }
-  S.decals.push({ x, y, pix, a: 0.8 });
+  R('scorch', [x, y], () => {
+    const pix = [];
+    for (let i = 0; i < 90; i++) {
+      const a = rand(0, Math.PI * 2), r = Math.pow(Math.random(), 0.6) * 16;
+      pix.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r * 0.7), Math.random() < 0.5 ? '#141210' : '#2a2320']);
+    }
+    S.decals.push({ x, y, pix, a: 0.8 });
+  });
 }
 
 export function casing(x, y, angle) {
@@ -53,20 +70,25 @@ export function sparks(x, y, angle) {
 }
 
 export function explosion(x, y) {
-  burst(x, y, 26, { speed: 3.2, color: '#ffb347', type: 'fire', lifeMul: 0.8, grav: -0.02, lift: 2, size: 2 });
-  burst(x, y, 16, { speed: 1.2, color: '#3a3533', type: 'smoke', lifeMul: 2.4, grav: -0.03, lift: 1, size: 3 });
-  scorch(x, y);
-  light(x, y, 140, 'rgba(255,170,80,', 36);
-  shake(10);
-  S.hitstop = 4;
-  sfx('explosion');
+  R('explosion', [x, y], () => {
+    burst(x, y, 26, { speed: 3.2, color: '#ffb347', type: 'fire', lifeMul: 0.8, grav: -0.02, lift: 2, size: 2 });
+    burst(x, y, 16, { speed: 1.2, color: '#3a3533', type: 'smoke', lifeMul: 2.4, grav: -0.03, lift: 1, size: 3 });
+    scorch(x, y);
+    light(x, y, 140, 'rgba(255,170,80,', 36);
+    shake(10);
+    S.hitstop = 4;
+    sfx('explosion');
+  });
 }
 
 export function float(x, y, text, color = '#f3d27a') {
-  S.floaters.push({ x, y, text, color, life: 50 });
+  R('float', [x, y, text, color], () => {
+    S.floaters.push({ x, y, text, color, life: 50 });
+  });
 }
 
 export function light(x, y, r, color, life, follow) {
+  if (!follow && depth === 0 && net.capture && net.rec) net.rec('light', [x, y, r, color, life]);
   S.lights.push({ x, y, r, color, life, max: life, follow });
 }
 
@@ -269,3 +291,6 @@ export function drawCinema(hurt, bars) {
 export function drawMuzzle(x, y, angle, f) {
   frame('fx/muzzle', f, x, y, { rot: angle, ax: 0, ay: 0.5 });
 }
+
+// para que el cliente reproduzca los efectos que manda el anfitrión
+export const FX = { burst: (...a) => burst(...a), blood: (...a) => blood(...a), splat: (...a) => splat(...a), scorch: (...a) => scorch(...a), explosion: (...a) => explosion(...a), float: (...a) => float(...a), light: (...a) => light(...a) };

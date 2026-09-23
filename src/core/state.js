@@ -27,6 +27,11 @@ export const S = {
   over: false,
 };
 
+// Red: role = null (un jugador) | 'host' | 'client'. Mientras el anfitrión
+// simula, capture=true y los efectos/sonidos se graban en rec() para
+// reenviarlos a los clientes.
+export const net = { role: null, capture: false, rec: null, me: 0 };
+
 const handlers = {};
 export const bus = {
   on(ev, fn) { (handlers[ev] ||= []).push(fn); },

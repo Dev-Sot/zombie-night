@@ -1,11 +1,16 @@
 import { frame, ctx, sx, sy } from '../core/render.js';
-import { S, dist, bus } from '../core/state.js';
+import { S, dist, bus, net } from '../core/state.js';
+import { pixelText, textWidth } from '../core/pixelfont.js';
 import { sfx } from '../core/audio.js';
 import { moveEntity } from './world.js';
 import { blood, shake, burst, float } from './fx.js';
 import { WEAPONS, ORDER, tryFire, startReload, finishReload, drawHeldWeapon, dust } from './weapons.js';
 
-export function createPlayer(L, control) {
+// colores de los jugadores 2-4 (el 1 usa el sprite original)
+export const TINTS = [null, 'hue-rotate(110deg) saturate(1.3)', 'hue-rotate(200deg) saturate(1.4)', 'hue-rotate(300deg) saturate(1.3)'];
+export const TINT_CSS = ['#e9e6df', '#7cff8f', '#7cc4ff', '#ff8fd8'];
+
+export function createPlayer(L, control, idx = 0, name = '') {
   const lo = L.loadout;
   const inv = {
     weapons: [...lo.weapons], cur: lo.weapons.includes('pistol') ? 'pistol' : lo.weapons[0],
@@ -14,7 +19,8 @@ export function createPlayer(L, control) {
   };
   for (const w of inv.weapons) inv.mag[w] = WEAPONS[w].mag || 0;
   return {
-    x: L.player.x, y: L.player.y, r: 5, hp: 100, maxHp: 100, speed: 1.3,
+    idx, name, local: !control.remote, reviveT: 0,
+    x: L.player.x + [0, 14, -14, 0][idx], y: L.player.y + [0, 6, 6, 14][idx], r: 5, hp: 100, maxHp: 100, speed: 1.3,
     aim: -Math.PI / 2, dir: 'up', walk: 0, moving: false, control, inv,
     coins: lo.coins || 0, lightOn: true,
     fireCd: 0, reloadT: 0, swingT: 0, recoil: 0, muzzleT: 0,
@@ -42,7 +48,7 @@ export function hurtPlayer(p, dmg, angle, ignoreInvuln = false) {
   if (p.hp <= 0) {
     p.hp = 0; p.dead = true; p.deadT = 0;
     p.deathDir = Math.cos(angle) >= 0 ? 'side' : 'sideleft';
-    S.timeScale = 0.35;
+    if (!net.role) S.timeScale = 0.35;
     bus.emit('playerDown', p);
   }
 }
@@ -54,7 +60,7 @@ export function heal(p) {
   if (inv.medkit > 0 && p.maxHp - p.hp > 25) { inv.medkit--; amount = 55; }
   else if (inv.bandage > 0) { inv.bandage--; amount = 22; }
   else if (inv.medkit > 0) { inv.medkit--; amount = 55; }
-  if (!amount) { bus.emit('toast', 'SIN VENDAS NI BOTIQUINES'); return; }
+  if (!amount) { if (p.local) bus.emit('toast', 'SIN VENDAS NI BOTIQUINES'); return; }
   p.hp = Math.min(p.maxHp, p.hp + amount);
   burst(p.x, p.y - 8, 12, { color: '#8dff8d', type: 'spark', lifeMul: 0.8, grav: -0.03, speed: 0.8 });
   float(p.x, p.y - 20, `+${amount}`, '#9dff9d');
@@ -80,8 +86,8 @@ export function updatePlayer(p) {
   p.recoil *= 0.7;
 
   // apuntar
-  const m = c.mouse;
-  p.aim = Math.atan2(m.y + S.cam.y - (p.y - 7), m.x + S.cam.x - p.x);
+  if (c.aim != null) p.aim = c.aim;
+  else { const m = c.mouse; p.aim = Math.atan2(m.y + S.cam.y - (p.y - 7), m.x + S.cam.x - p.x); }
   p.dir = dirFromAim(p.aim);
 
   // mover / esquivar
@@ -121,28 +127,68 @@ export function updatePlayer(p) {
   if (c.pressed('KeyF')) { p.lightOn = !p.lightOn; sfx('uiClick', 0.5); }
 
   // latido con poca vida
-  if (p.hp < 30 && --p.lowHpBeat <= 0) { sfx('heartbeat', 0.8); p.lowHpBeat = 70; }
+  if (p.local && p.hp < 30 && --p.lowHpBeat <= 0) { sfx('heartbeat', 0.8); p.lowHpBeat = 70; }
 }
 
 export function playerDrawables() {
   return S.players.filter((p) => !p.boarded).map((p) => ({ y: p.dead ? p.y - 4 : p.y, draw: () => drawPlayer(p) }));
 }
 
-function drawPlayer(p) {
+export function drawPlayer(p) {
+  const tint = TINTS[p.idx || 0];
   if (p.dead) {
-    frame(`char/death_${p.deathDir}`, Math.min(5, p.deadT / 6), p.x, p.y);
+    frame(`char/death_${p.deathDir}`, Math.min(5, p.deadT / 6), p.x, p.y, { filter: tint || undefined });
+    if (S.players.length > 1) drawReviveBar(p);
     return;
   }
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.beginPath(); ctx.ellipse(sx(p.x), sy(p.y), 6, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  if (S.players.length > 1) {
+    ctx.strokeStyle = TINT_CSS[p.idx || 0]; ctx.globalAlpha = 0.7; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(sx(p.x), sy(p.y), 7, 3, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   const blink = p.invuln > 0 && Math.floor(S.t / 3) % 2 === 0;
-  const opt = { filter: blink ? 'brightness(2.2)' : undefined, alpha: p.dashT > 0 ? 0.75 : 1 };
+  const opt = { filter: blink ? 'brightness(2.2)' : tint || undefined, alpha: p.dashT > 0 ? 0.75 : 1 };
   const body = p.moving || p.dashT > 0 ? `char/run_${p.dir}` : `char/idle_${p.dir}`;
   const f = p.moving || p.dashT > 0 ? p.walk : S.t / 9;
   const behind = p.dir === 'up';
   if (behind) drawHeldWeapon(p);
   frame(body, f, p.x, p.y, opt);
   if (!behind) drawHeldWeapon(p);
+  // nombre sobre la cabeza en multijugador
+  if (S.players.length > 1 && p.name) {
+    const n = p.name.toUpperCase(), w = textWidth(n);
+    pixelText(ctx, n, sx(p.x) - Math.floor(w / 2) + 1, sy(p.y) - 29, '#000');
+    pixelText(ctx, n, sx(p.x) - Math.floor(w / 2), sy(p.y) - 30, TINT_CSS[p.idx || 0]);
+  }
+}
+
+function drawReviveBar(p) {
+  const X = sx(p.x), Y = sy(p.y) - 22;
+  const t = 'CAIDO', w = textWidth(t);
+  if (Math.floor(S.t / 20) % 2) pixelText(ctx, t, X - Math.floor(w / 2), Y - 8, '#e8483f');
+  ctx.fillStyle = '#000'; ctx.fillRect(X - 12, Y, 24, 3);
+  ctx.fillStyle = '#7cff8f'; ctx.fillRect(X - 12, Y, Math.round(24 * (p.reviveT || 0) / REVIVE_T), 3);
+}
+
+// Revivir: un compañero vivo parado al lado mantiene E
+export const REVIVE_T = 150;
+export function updateRevives() {
+  if (S.players.length < 2) return;
+  for (const p of S.players) {
+    if (!p.dead || p.boarded) continue;
+    const helper = S.players.find((o) => !o.dead && o !== p && dist(o.x, o.y, p.x, p.y) < 20 && o.control.held?.('KeyE'));
+    if (helper) {
+      p.reviveT = (p.reviveT || 0) + 1;
+      if (p.reviveT >= REVIVE_T) {
+        p.dead = false; p.hp = 35; p.invuln = 120; p.reviveT = 0; p.deadT = 0;
+        burst(p.x, p.y - 8, 16, { color: '#8dff8d', type: 'spark', lifeMul: 0.8, grav: -0.03, speed: 0.8 });
+        sfx('heal');
+        bus.emit('teamToast', `${(p.name || 'JUGADOR').toUpperCase()} VOLVIO`);
+      }
+    } else p.reviveT = Math.max(0, (p.reviveT || 0) - 2);
+  }
 }
 
 export function nearestPlayerTo(x, y) {

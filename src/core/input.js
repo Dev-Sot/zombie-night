@@ -12,6 +12,7 @@ let canvasEl = null;
 export function initInput(canvas) {
   canvasEl = canvas;
   window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
     if (!keys.has(e.code)) edges.add(e.code);
     keys.add(e.code);
     if (['Space', 'Tab', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
@@ -39,8 +40,10 @@ export const localControl = {
   get fire() { return mouse.down; },
   mouse,
   pressed(code) { return edges.has(code); },
+  held(code) { return keys.has(code); },
   takeWheel() { const w = wheel; wheel = 0; return w; },
 };
 
+export function heldKeys() { return keys; }
 export function anyPressed() { return edges.size > 0 || mouse.clicked; }
 export function endFrame() { edges.clear(); mouse.clicked = false; }

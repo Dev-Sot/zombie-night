@@ -44,7 +44,7 @@ function give(pl, p) {
     if (w.ammo) inv.ammo[w.ammo] += AMMO_GIVE[w.ammo] * 2;
     inv.cur = p.weapon;
     sfx('weapon');
-    bus.emit('toast', `${w.name.toUpperCase()} EQUIPADA  ·  TECLA ${ORDER.indexOf(p.weapon) + 1}`);
+    if (pl.local) bus.emit('toast', `${w.name.toUpperCase()} EQUIPADA  ·  TECLA ${ORDER.indexOf(p.weapon) + 1}`);
   } else if (p.kind === 'item') {
     sfx('pickupFuel');
     bus.emit('collect', p);

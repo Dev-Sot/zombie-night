@@ -1,8 +1,11 @@
 {
   "name": "noche-sin-luna",
+  "version": "0.4.0",
+  "description": "Supervivencia zombie top-down en pixel art con cooperativo online para 4 jugadores.",
+  "license": "MIT",
+  "author": "Dev-Sot",
   "private": true,
   "type": "module",
-  "description": "Supervivencia zombie top-down en pixel art.",
   "scripts": {
     "dev": "npx serve .",
     "check": "node tools/check.js"

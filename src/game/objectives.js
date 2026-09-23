@@ -45,7 +45,7 @@ function runEvents(ev) {
   if (!ev) return;
   if (ev.surge) S.surge = (S.surge || 0) + ev.surge;
   if (ev.intensity) S.spawnBoost = ev.intensity;
-  if (ev.music) playMusic(ev.music);
+  if (ev.music) { playMusic(ev.music); bus.emit('music', ev.music); }
   if (ev.banner) bus.emit('banner', { text: ev.banner, danger: !!ev.danger });
   if (ev.sfx) sfx(ev.sfx);
   if (ev.marker) { const m = marker(ev.marker); if (m) m.state = ev.markerState ?? 1; }

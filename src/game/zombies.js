@@ -16,9 +16,11 @@ export const ZTYPES = {
   boss: { sprite: 'brute', hp: 1700, speed: 0.6, dmg: 30, r: 15, scale: 2.1, knockRes: 0.95, coin: 40, filter: 'hue-rotate(-35deg) saturate(1.5) brightness(0.9)', boss: true },
 };
 
+let nextId = 1;
 export function spawnZombie(type, x, y) {
   const T = ZTYPES[type];
   const z = {
+    id: nextId++,
     type, T, x, y, r: T.r, scale: T.scale || 1, hp: T.hp, maxHp: T.hp,
     speed: T.speed * rand(0.88, 1.12), vx: 0, vy: 0, kx: 0, ky: 0,
     state: 'walk', anim: rand(0, 8), dir: 'down', hitFlash: 0, atkCd: rand(20, 60), throwCd: rand(60, 160),
@@ -36,7 +38,7 @@ function dirFrom(dx, dy) {
 function nearestPlayer(z) {
   let best = null, bd = 1e9;
   for (const p of S.players) {
-    if (p.dead) continue;
+    if (p.dead || p.boarded) continue;
     const d = dist(p.x, p.y, z.x, z.y);
     if (d < bd) { bd = d; best = p; }
   }
@@ -72,8 +74,8 @@ function killZombie(z, angle, by) {
 
 let flowTimer = 0;
 export function updateZombies() {
-  const [p0] = S.players.filter((p) => !p.dead);
-  if (p0 && --flowTimer <= 0) { updateFlow(p0.x, p0.y); flowTimer = 20; }
+  const alive = S.players.filter((p) => !p.dead && !p.boarded);
+  if (alive.length && --flowTimer <= 0) { updateFlow(alive); flowTimer = 20; }
 
   for (const z of S.zombies) {
     if (z.hitFlash > 0) z.hitFlash--;
@@ -224,7 +226,7 @@ function drawZombie(z) {
 // Aparecen en puntos del borde (o en los spawns del nivel), fuera de pantalla y lejos del jugador.
 export function pickSpawnPoint() {
   const W = S.world, L = S.level;
-  const [p] = S.players;
+  const ps = S.players;
   for (let i = 0; i < 40; i++) {
     let x, y;
     if (L.spawns && Math.random() < 0.7) { const s = pick(L.spawns); x = s.x + rand(-20, 20); y = s.y + rand(-20, 20); }
@@ -234,8 +236,7 @@ export function pickSpawnPoint() {
       y = side === 2 ? 20 : side === 3 ? W.H - 10 : rand(20, W.H - 20);
     }
     if (!cellFree(x, y)) continue;
-    if (p && dist(x, y, p.x, p.y) < 200) continue;
-    if (p && Math.abs(x - p.x) < 210 && Math.abs(y - p.y) < 130) continue;
+    if (ps.some((p) => dist(x, y, p.x, p.y) < 200 || (Math.abs(x - p.x) < 210 && Math.abs(y - p.y) < 130))) continue;
     return { x, y };
   }
   return null;

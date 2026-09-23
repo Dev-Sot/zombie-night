@@ -2,7 +2,7 @@ import { GW, GH, TILE } from '../core/config.js';
 import { sheet } from '../core/assets.js';
 import { ctx, sx, sy, sprite, fillPattern, rect, onScreen } from '../core/render.js';
 import { pixelText, textWidth } from '../core/pixelfont.js';
-import { S } from '../core/state.js';
+import { S, net } from '../core/state.js';
 
 // ---------------------------------------------------------------------------
 // Props: caja de colisión relativa al sprite (x,y,w,h desde su esquina sup.
@@ -109,7 +109,7 @@ export function addProp(W, k, x, y, opt = {}) {
   const s = sheet(`env/${k}`);
   if (!s) return null;
   const def = PROP_DEFS[k];
-  const P = { k, x, y, w: s.fw, h: s.fh, sortY: FLAT.has(k) ? -1e9 : y + s.fh, flat: FLAT.has(k), def, hp: def?.explosive ? 20 : 0, ...opt };
+  const P = { id: W.props.length, k, x, y, w: s.fw, h: s.fh, sortY: FLAT.has(k) ? -1e9 : y + s.fh, flat: FLAT.has(k), def, hp: def?.explosive ? 20 : 0, ...opt };
   W.props.push(P);
   if (def && opt.solid !== false) {
     const hb = def.hit(s.fw, s.fh);
@@ -121,6 +121,7 @@ export function addProp(W, k, x, y, opt = {}) {
 }
 
 export function removeProp(W, P) {
+  if (net.capture && net.rec) net.rec('propGone', [P.id]);
   W.props = W.props.filter((p) => p !== P);
   if (P.solid) W.solids = W.solids.filter((s) => s !== P.solid);
   rebuildHash(W);
@@ -202,15 +203,19 @@ function buildGrid(W) {
 }
 
 const NB = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-export function updateFlow(tx, ty) {
+// targets: lista de {x,y}; BFS con varias fuentes (cada zombie va al jugador más cercano por camino)
+export function updateFlow(targets) {
   const W = S.world, { cols, rows, block, flow } = W;
   flow.fill(-1);
-  const sx0 = Math.max(0, Math.min(cols - 1, Math.floor(tx / TILE)));
-  const sy0 = Math.max(0, Math.min(rows - 1, Math.floor(ty / TILE)));
   const q = new Int32Array(cols * rows);
   let head = 0, tail = 0;
-  const start = sy0 * cols + sx0;
-  flow[start] = 0; q[tail++] = start;
+  for (const t of targets) {
+    const sx0 = Math.max(0, Math.min(cols - 1, Math.floor(t.x / TILE)));
+    const sy0 = Math.max(0, Math.min(rows - 1, Math.floor(t.y / TILE)));
+    const start = sy0 * cols + sx0;
+    if (flow[start] === 0) continue;
+    flow[start] = 0; q[tail++] = start;
+  }
   while (head < tail) {
     const c = q[head++], cx = c % cols, cy = (c / cols) | 0, d = flow[c];
     for (const [ox, oy] of NB) {

@@ -213,7 +213,7 @@ export const LEVELS = [
   },
 ];
 
-export const LEVEL4 = { id: 4, name: 'Juntos', tag: 'MULTIJUGADOR', color: '#1b2830', desc: 'Salas por código para hasta 4 jugadores. Próximamente.' };
+export const LEVEL4 = { id: 4, name: 'Juntos', tag: 'ONLINE · 2 A 4', color: '#1b2830', desc: 'Cooperativo online. Creá una sala, pasá el código y sobrevivan las tres noches en equipo.' };
 
 export const SHOP_ITEMS = {
   ammo_pistol: { name: 'Balas de pistola', sub: '+24', price: 8, icon: 'icon_ammo' },

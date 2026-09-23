@@ -48,7 +48,7 @@
     <button id="pauseBtn">PAUSA</button>
   </div>
 
-  <!-- MENÚ PRINCIPAL -->
+  <!-- MENU PRINCIPAL -->
   <div class="overlay menu-main" id="mainMenu">
     <div class="menu-panel">
       <div class="logo">
@@ -59,29 +59,58 @@
       <nav class="menu-list">
         <button data-act="continue" id="btnContinue"><span class="arrow"></span>CONTINUAR</button>
         <button data-act="levels"><span class="arrow"></span>NIVELES</button>
+        <button data-act="coop"><span class="arrow"></span>JUNTOS <small class="tagnew">ONLINE</small></button>
         <button data-act="settings"><span class="arrow"></span>AJUSTES</button>
         <button data-act="howto"><span class="arrow"></span>CONTROLES</button>
-        <button data-act="credits"><span class="arrow"></span>CRÉDITOS</button>
+        <button data-act="credits"><span class="arrow"></span>CREDITOS</button>
       </nav>
-      <div class="menu-foot">v0.3 · un juego de Dev-Sot</div>
+      <div class="menu-foot">v0.4 · un juego de Dev-Sot</div>
     </div>
   </div>
 
-  <!-- SELECCIÓN DE NIVEL -->
+  <!-- SELECCION DE NIVEL -->
   <div class="overlay hidden" id="levelMenu">
     <div class="screen-title">ELEGIR NOCHE</div>
     <div class="level-cards" id="levelCards"></div>
     <button class="btn ghost" data-back>VOLVER</button>
   </div>
 
+  <!-- JUNTOS: multijugador por código de sala -->
+  <div class="overlay hidden" id="coopMenu">
+    <div class="screen-title">JUNTOS</div>
+    <div class="coop-sub">Cooperativo online de 2 a 4 jugadores. Uno crea la sala y comparte el código.</div>
+    <div class="coop-join" id="coopJoin">
+      <label class="field">TU NOMBRE <input id="coopName" maxlength="10" autocomplete="off" spellcheck="false"></label>
+      <div class="coop-row">
+        <button class="btn" id="btnCreateRoom">CREAR SALA</button>
+        <span class="coop-or">O</span>
+        <input id="coopCode" class="code-input" maxlength="5" placeholder="CODIGO" autocomplete="off" spellcheck="false">
+        <button class="btn ghost" id="btnJoinRoom">UNIRSE</button>
+      </div>
+    </div>
+    <div class="coop-lobby hidden" id="coopLobby">
+      <div class="room-code">
+        <span>CODIGO DE SALA</span>
+        <b id="roomCode">-----</b>
+        <button class="btn ghost small" id="btnCopyLink">COPIAR ENLACE</button>
+      </div>
+      <div class="slots" id="lobbySlots"></div>
+      <div class="lobby-levels" id="lobbyLevels"></div>
+      <div class="lobby-wait" id="lobbyWait">Esperando que el anfitrión empiece la partida...</div>
+      <button class="btn" id="btnStartCoop">EMPEZAR</button>
+    </div>
+    <div class="coop-status" id="coopStatus"></div>
+    <button class="btn ghost" id="btnCoopBack">VOLVER</button>
+  </div>
+
   <!-- AJUSTES -->
   <div class="overlay hidden" id="settingsMenu">
     <div class="screen-title">AJUSTES</div>
     <div class="settings">
-      <label>MÚSICA <input type="range" min="0" max="100" id="volMusic"></label>
+      <label>MUSICA <input type="range" min="0" max="100" id="volMusic"></label>
       <label>EFECTOS <input type="range" min="0" max="100" id="volSfx"></label>
       <label class="check"><input type="checkbox" id="optShake"> TEMBLOR DE PANTALLA</label>
-      <label class="check"><input type="checkbox" id="optCine"> CINEMÁTICAS DE INICIO</label>
+      <label class="check"><input type="checkbox" id="optCine"> CINEMATICAS DE INICIO</label>
     </div>
     <button class="btn ghost" data-back>VOLVER</button>
   </div>
@@ -100,17 +129,19 @@
       <div><b>E</b> interactuar</div>
       <div><b>F</b> linterna</div>
       <div><b>ESC</b> pausa</div>
+      <div><b>MANTENER E</b> revivir compañero</div>
     </div>
     <button class="btn ghost" data-back>VOLVER</button>
   </div>
 
-  <!-- CRÉDITOS -->
+  <!-- CREDITOS -->
   <div class="overlay hidden" id="creditsMenu">
-    <div class="screen-title">CRÉDITOS</div>
+    <div class="screen-title">CREDITOS</div>
     <div class="credits">
       <p>Diseño y desarrollo<br><b>Dev-Sot</b></p>
       <p>Personajes, zombies y escenarios<br><b>Post-Apocalypse Pixel Art Asset Pack</b> · TheLazyStone</p>
       <p>Objetos recogibles<br><b>Zombie Apocalypse Tileset</b> · Ittai Manero</p>
+      <p>Red<br><b>PeerJS</b> · WebRTC</p>
     </div>
     <button class="btn ghost" data-back>VOLVER</button>
   </div>
@@ -122,7 +153,7 @@
       <button class="btn" id="btnResume">REANUDAR</button>
       <button class="btn ghost" id="btnPauseSettings">AJUSTES</button>
       <button class="btn ghost" id="btnRestart">REINICIAR NOCHE</button>
-      <button class="btn ghost" id="btnQuit">MENÚ PRINCIPAL</button>
+      <button class="btn ghost" id="btnQuit">MENU PRINCIPAL</button>
     </div>
   </div>
 
@@ -139,9 +170,10 @@
     <div class="screen-title" id="resultsTitle">NOCHE SUPERADA</div>
     <div class="rank" id="resultsRank">A</div>
     <div class="stats" id="resultsStats"></div>
+    <div class="end-note hidden" id="resultsNote">El anfitrión elige cómo seguir</div>
     <div class="stack row">
       <button class="btn" id="btnNext">SIGUIENTE NOCHE</button>
-      <button class="btn ghost" id="btnResultsMenu">MENÚ</button>
+      <button class="btn ghost" id="btnResultsMenu">MENU</button>
     </div>
   </div>
 
@@ -149,9 +181,10 @@
   <div class="overlay hidden" id="deathMenu">
     <div class="screen-title danger">TE ATRAPARON</div>
     <div class="stats" id="deathStats"></div>
+    <div class="end-note hidden" id="deathNote">El anfitrión puede reintentar la noche</div>
     <div class="stack row">
       <button class="btn" id="btnRetry">REINTENTAR</button>
-      <button class="btn ghost" id="btnDeathMenu">MENÚ</button>
+      <button class="btn ghost" id="btnDeathMenu">MENU</button>
     </div>
   </div>
 

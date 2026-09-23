@@ -3,6 +3,7 @@ import { initInput } from './core/input.js';
 import { loadAll } from './core/assets.js';
 import { initAudio } from './core/audio.js';
 import { save } from './core/save.js';
+import { room, createRoom, joinRoom, leaveRoom, broadcastLobby } from './net/net.js';
 import * as ui from './ui/ui.js';
 import * as game from './game/game.js';
 
@@ -28,18 +29,29 @@ ui.initUI({
   onPause: () => game.pause(),
   onRestart: () => game.restart(),
   onQuit: () => game.quitToMenu(),
+  onEndMenu: () => game.endMenu(),
   onNext: () => game.nextLevel(),
   onShopClose: () => game.resume(),
   onShopBuy: (k) => game.buy(k),
+  onCoopCreate: (name) => createRoom(name),
+  onCoopJoin: (code, name) => joinRoom(code, name),
+  onCoopLeave: () => { leaveRoom(); ui.renderLobby(); },
+  onCoopLevel: (id) => { if (room.role === 'host') { room.level = id; broadcastLobby(); } },
+  onCoopStart: () => { if (room.role === 'host') game.hostStart(room.level); },
 });
+ui.setThumbs(game.levelThumbs());
 game.settingsChanged(save.settings);
 game.menuScene();
 game.startLoop();
-ui.fade(() => ui.show('mainMenu'), 200);
+
+// enlace de invitación: ?sala=CODIGO abre directo la pantalla de unirse
+const invite = new URLSearchParams(location.search).get('sala');
+ui.fade(() => (invite ? ui.showCoop(invite.toUpperCase().slice(0, 5)) : ui.show('mainMenu')), 200);
+window.addEventListener('beforeunload', () => leaveRoom());
 
 // ?debug en la URL expone el estado para pruebas automáticas
 if (new URLSearchParams(location.search).has('debug')) {
-  const { S, bus } = await import('./core/state.js');
+  const { S, bus, net } = await import('./core/state.js');
   const Z = await import('./game/zombies.js');
-  window.__nsl = { S, bus, game, Z };
+  window.__nsl = { S, bus, net, room, game, Z };
 }

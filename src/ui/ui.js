@@ -4,11 +4,18 @@ import { sfx } from '../core/audio.js';
 import { LEVELS, LEVEL4, SHOP_ITEMS } from '../game/levels.js';
 import { WEAPONS, ORDER } from '../game/weapons.js';
 import { objectiveText } from '../game/objectives.js';
+import { room, cleanCode, MAX_PLAYERS } from '../net/net.js';
+import { TINT_CSS } from '../game/player.js';
 
 const $ = (id) => document.getElementById(id);
-const OVERLAYS = ['mainMenu', 'levelMenu', 'settingsMenu', 'howtoMenu', 'creditsMenu', 'pauseMenu', 'shopMenu', 'resultsMenu', 'deathMenu', 'loading'];
+const OVERLAYS = ['mainMenu', 'levelMenu', 'coopMenu', 'settingsMenu', 'howtoMenu', 'creditsMenu', 'pauseMenu', 'shopMenu', 'resultsMenu', 'deathMenu', 'loading'];
 let H = {};
 let backTo = 'mainMenu';
+let thumbs = {};
+export function setThumbs(t) { thumbs = t; }
+
+// Press Start 2P no trae mayúsculas acentuadas: se reemplazan por las simples
+export const px = (t) => String(t).replace(/[ÁÉÍÓÚ]/g, (c) => ({ Á: 'A', É: 'E', Í: 'I', Ó: 'O', Ú: 'U' })[c]);
 
 export function show(id) {
   $('banner').classList.remove('show');
@@ -44,6 +51,7 @@ export function initUI(handlers) {
     if (act === 'settings') { backTo = 'mainMenu'; show('settingsMenu'); }
     if (act === 'howto') show('howtoMenu');
     if (act === 'credits') show('creditsMenu');
+    if (act === 'coop') showCoop();
   }));
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => show(backTo === 'pauseMenu' && b.closest('#settingsMenu') ? 'pauseMenu' : 'mainMenu')));
 
@@ -63,9 +71,10 @@ export function initUI(handlers) {
   $('pauseBtn').addEventListener('click', () => H.onPause());
   $('btnShopClose').addEventListener('click', () => H.onShopClose());
   $('btnNext').addEventListener('click', () => H.onNext());
-  $('btnResultsMenu').addEventListener('click', () => H.onQuit());
+  $('btnResultsMenu').addEventListener('click', () => H.onEndMenu());
   $('btnRetry').addEventListener('click', () => H.onRestart());
-  $('btnDeathMenu').addEventListener('click', () => H.onQuit());
+  $('btnDeathMenu').addEventListener('click', () => H.onEndMenu());
+  initCoop();
 
   bus.on('banner', ({ text, danger }) => banner(text, danger));
   bus.on('toast', (t) => toast(t));
@@ -83,19 +92,21 @@ function renderLevels() {
   const wrap = $('levelCards');
   wrap.innerHTML = '';
   [...LEVELS, LEVEL4].forEach((L) => {
-    const locked = L.id === 4 || L.id > save.unlocked;
+    const locked = L.id !== 4 && L.id > save.unlocked;
     const c = document.createElement('button');
     c.className = `card${locked ? ' locked' : ''}`;
-    c.style.setProperty('--c', `linear-gradient(160deg, ${L.color}, #07070a)`);
+    const th = thumbs[L.id] || (L.id === 4 && thumbs[2]);
+    c.style.setProperty('--c', th ? `url(${th}) center/cover` : `linear-gradient(160deg, ${L.color}, #07070a)`);
     c.innerHTML = `
       <div class="tag">${L.tag}</div>
       ${save.best[L.id] ? `<div class="best">${save.best[L.id]}</div>` : ''}
       <div class="num">NOCHE ${L.id}</div>
-      <div class="name">${L.name.toUpperCase()}</div>
+      <div class="name">${px(L.name.toUpperCase())}</div>
       <div class="desc">${L.desc}</div>
-      ${locked ? `<div class="lockmsg">${L.id === 4 ? 'PRÓXIMAMENTE' : 'SUPERÁ LA NOCHE ANTERIOR'}</div>` : ''}`;
+      ${locked ? '<div class="lockmsg">SUPERA LA NOCHE ANTERIOR</div>' : ''}
+      ${L.id === 4 ? '<div class="lockmsg go">JUGAR ONLINE</div>' : ''}`;
     c.addEventListener('mouseenter', () => sfx('uiHover'));
-    if (!locked) c.addEventListener('click', () => { sfx('uiClick'); H.onPlayLevel(L.id); });
+    if (!locked) c.addEventListener('click', () => { sfx('uiClick'); if (L.id === 4) showCoop(); else H.onPlayLevel(L.id); });
     wrap.appendChild(c);
   });
 }
@@ -126,7 +137,7 @@ export function buildHud(p) {
     $('hotbar').appendChild(s);
   });
   Object.keys(cache).forEach((k) => delete cache[k]);
-  set('hudLevel', 'textContent', `NOCHE ${S.level.id} · ${S.level.name.toUpperCase()}`);
+  set('hudLevel', 'textContent', px(`NOCHE ${S.level.id} · ${S.level.name.toUpperCase()}`));
   updateHud(p);
 }
 
@@ -172,14 +183,14 @@ export function prompt(text) {
 let bannerT = null;
 export function banner(text, danger) {
   const b = $('banner');
-  b.textContent = text; b.classList.toggle('danger', !!danger); b.classList.add('show');
+  b.textContent = px(text); b.classList.toggle('danger', !!danger); b.classList.add('show');
   clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('show'), 2600);
 }
 
 let toastT = null;
 export function toast(text) {
   const t = $('toast');
-  t.textContent = text; t.classList.add('show');
+  t.textContent = px(text); t.classList.add('show');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
@@ -234,14 +245,108 @@ export function openShop(p, items) {
 }
 
 // ---------------- resultados ----------------
-export function showResults(stats, rank, hasNext) {
+// role: null (un jugador) | 'host' | 'client'
+const endLabel = (role) => (role === 'host' ? 'VOLVER A LA SALA' : role === 'client' ? 'SALIR DE LA SALA' : 'MENU');
+export function showResults(stats, rank, hasNext, role = null) {
   $('resultsRank').textContent = rank;
   $('resultsStats').innerHTML = stats.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
-  $('btnNext').classList.toggle('hidden', !hasNext);
-  $('resultsTitle').textContent = hasNext ? 'NOCHE SUPERADA' : 'SOBREVIVISTE';
+  $('btnNext').classList.toggle('hidden', !hasNext || role === 'client');
+  $('resultsNote').classList.toggle('hidden', role !== 'client');
+  $('btnResultsMenu').textContent = endLabel(role);
+  $('resultsTitle').textContent = hasNext ? 'NOCHE SUPERADA' : 'SOBREVIVIERON';
+  if (!role && !hasNext) $('resultsTitle').textContent = 'SOBREVIVISTE';
   show('resultsMenu');
 }
-export function showDeath(stats) {
+export function showDeath(stats, role = null) {
   $('deathStats').innerHTML = stats.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
+  $('btnRetry').classList.toggle('hidden', role === 'client');
+  $('deathNote').classList.toggle('hidden', role !== 'client');
+  $('btnDeathMenu').textContent = endLabel(role);
+  document.querySelector('#deathMenu .screen-title').textContent = role ? 'CAYO TODO EL EQUIPO' : 'TE ATRAPARON';
   show('deathMenu');
+}
+export function pauseOptions(role) {
+  $('btnRestart').classList.toggle('hidden', role === 'client');
+  $('btnQuit').textContent = role ? 'SALIR DE LA SALA' : 'MENU PRINCIPAL';
+}
+export function closeOverlaysForOutro() { hideOverlays(); }
+
+// ---------------- JUNTOS (multijugador) ----------------
+function status(text, bad) {
+  const s = $('coopStatus');
+  s.textContent = text || '';
+  s.classList.toggle('bad', !!bad);
+}
+
+function showCoop(code) {
+  if (code) $('coopCode').value = code;
+  renderLobby();
+  show('coopMenu');
+}
+export { showCoop };
+export function showLobby() { renderLobby(); show('coopMenu'); }
+
+function initCoop() {
+  const name = $('coopName');
+  name.value = save.name || '';
+  const getName = () => {
+    const n = name.value.trim().toUpperCase().replace(/[^A-Z0-9Ñ ]/g, '').slice(0, 10) || 'JUGADOR';
+    save.name = n; persist();
+    return n;
+  };
+  $('coopCode').addEventListener('input', (e) => { e.target.value = cleanCode(e.target.value); });
+  $('btnCreateRoom').addEventListener('click', async () => {
+    status('Creando sala...');
+    try { await H.onCoopCreate(getName()); status(''); } catch (e) { status(e.message, true); }
+  });
+  const join = async () => {
+    const code = cleanCode($('coopCode').value);
+    if (code.length !== 5) { status('El código tiene 5 letras o números', true); return; }
+    status('Conectando...');
+    try { await H.onCoopJoin(code, getName()); status(''); } catch (e) { status(e.message, true); }
+  };
+  $('btnJoinRoom').addEventListener('click', join);
+  $('coopCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+  $('btnStartCoop').addEventListener('click', () => H.onCoopStart());
+  $('btnCoopBack').addEventListener('click', () => { if (room.role) H.onCoopLeave(); status(''); renderLobby(); show('mainMenu'); });
+  $('btnCopyLink').addEventListener('click', async () => {
+    const link = `${location.origin}${location.pathname}?sala=${room.code}`;
+    try { await navigator.clipboard.writeText(link); status('Enlace copiado. Mandáselo a tus amigos.'); } catch { status(link); }
+  });
+}
+
+export function renderLobby() {
+  const inRoom = !!room.role;
+  $('coopJoin').classList.toggle('hidden', inRoom);
+  $('coopLobby').classList.toggle('hidden', !inRoom);
+  $('btnCoopBack').textContent = inRoom ? 'SALIR DE LA SALA' : 'VOLVER';
+  if (!inRoom) return;
+  $('roomCode').textContent = room.code;
+  const slots = $('lobbySlots');
+  slots.innerHTML = '';
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    const p = room.players.find((q) => q.idx === i);
+    const d = document.createElement('div');
+    d.className = `pslot${p ? '' : ' empty'}`;
+    d.style.setProperty('--pc', TINT_CSS[i]);
+    d.innerHTML = p
+      ? `<span class="dot"></span><span class="pn">${p.name}</span>${i === 0 ? '<span class="ptag">ANFITRION</span>' : ''}${i === room.me ? '<span class="ptag you">VOS</span>' : ''}`
+      : '<span class="dot"></span><span class="pn">ESPERANDO...</span>';
+    slots.appendChild(d);
+  }
+  const host = room.role === 'host';
+  const lv = $('lobbyLevels');
+  lv.innerHTML = '';
+  for (const L of LEVELS) {
+    const b = document.createElement('button');
+    b.className = `lvl${room.level === L.id ? ' on' : ''}`;
+    b.disabled = !host;
+    if (thumbs[L.id]) b.style.backgroundImage = `url(${thumbs[L.id]})`;
+    b.innerHTML = `<span>NOCHE ${L.id}</span><b>${px(L.name.toUpperCase())}</b>`;
+    b.addEventListener('click', () => { sfx('uiClick'); H.onCoopLevel(L.id); });
+    lv.appendChild(b);
+  }
+  $('btnStartCoop').classList.toggle('hidden', !host);
+  $('lobbyWait').classList.toggle('hidden', host);
+  $('btnStartCoop').textContent = room.players.length > 1 ? `EMPEZAR (${room.players.length} JUGADORES)` : 'EMPEZAR SOLO';
 }

@@ -1,5 +1,5 @@
 import { ctx, sx, sy, frame } from '../core/render.js';
-import { S, rand, dist } from '../core/state.js';
+import { S, rand, dist, net } from '../core/state.js';
 import { sfx } from '../core/audio.js';
 import { bulletSolidAt } from './world.js';
 import { blood, sparks, casing, light, shake, burst } from './fx.js';
@@ -46,6 +46,7 @@ export function tryFire(p) {
     const a = p.aim + rand(-w.spread, w.spread) * (w.pellets > 1 ? 1 : 0.5);
     const sp = w.speed * rand(0.9, 1.1);
     S.bullets.push({ x: m.x, y: m.y, px: m.x, py: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: w.dmg, knock: w.knock, life: 48, owner: p });
+    if (net.rec) net.rec('shot', [m.x, m.y, Math.cos(a) * sp, Math.sin(a) * sp]);
   }
   S.shots++;
   p.recoil = w.recoil;
@@ -103,6 +104,7 @@ export function updateBullets() {
       b.x += b.vx / steps; b.y += b.vy / steps;
       const solid = bulletSolidAt(b.x, b.y);
       if (solid) {
+        if (b.ghost) { sparks(b.x, b.y, Math.atan2(b.vy, b.vx)); b.life = 0; break; }
         if (solid.ref?.def?.explosive) hitProp(solid.ref, b.dmg, b.owner);
         else { sparks(b.x, b.y, Math.atan2(b.vy, b.vx)); if (solid.ref?.kind !== 'building') solid.ref.hitFlash = 3; }
         b.life = 0; break;
@@ -111,8 +113,7 @@ export function updateBullets() {
         if (z.state === 'dying' || z.state === 'dead') continue;
         const zy = z.y - 8 * (z.scale || 1);
         if (Math.abs(b.x - z.x) < z.r + 2 && Math.abs(b.y - zy) < z.r + 7 * (z.scale || 1)) {
-          S.hits++;
-          damageZombie(z, b.dmg, Math.atan2(b.vy, b.vx), b.knock, b.owner);
+          if (!b.ghost) { S.hits++; damageZombie(z, b.dmg, Math.atan2(b.vy, b.vx), b.knock, b.owner); }
           b.life = 0; break;
         }
       }
@@ -122,6 +123,12 @@ export function updateBullets() {
   }
   S.bullets = S.bullets.filter((b) => b.life > 0);
   for (const p of S.world.props) if (p.hitFlash > 0) p.hitFlash--;
+}
+
+// balas "fantasma" en el cliente: solo se ven, el daño lo calcula el anfitrión
+export function ghostShot(x, y, vx, vy) {
+  S.bullets.push({ x, y, px: x, py: y, vx, vy, life: 48, ghost: true });
+  light(x, y, 60, 'rgba(255,190,110,', 5);
 }
 
 export function drawBullets() {

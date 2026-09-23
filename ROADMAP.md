@@ -26,16 +26,17 @@ Plan de desarrollo por fases. Cada fase termina desplegada en Vercel.
 - [x] Música procedural adaptativa por nivel y ambiente (lluvia, viento, tormenta).
 - [x] Barriles explosivos en cadena, faroles que titilan, relámpagos.
 
-## Fase 3 — Pulido (siguiente)
+## Fase 3 — Multijugador (completa)
+- [x] Salas por código de 5 letras y enlace de invitación, hasta 4 jugadores (WebRTC con PeerJS).
+- [x] Anfitrión autoritativo: los clientes mandan input, reciben snapshots a
+      20 Hz y predicen su propio movimiento.
+- [x] Revivir compañeros, colores y nombres por jugador, dificultad escalada por equipo.
+
+## Fase 4 — Pulido (siguiente)
+- [ ] Chat de sala y emotes rápidos.
 - [ ] Audio grabado con licencia libre (CC0) como opción sobre la síntesis
       (`assets/audio/manifest.json`).
 - [ ] Balance de dificultad con partidas reales.
 - [ ] Controles táctiles / gamepad.
-- [ ] Más variedad de props interiores y zonas por nivel.
-
-## Fase 4 — Multijugador
-- [ ] Salas por código para hasta 4 jugadores (WebRTC peer-to-peer).
-- [ ] Sincronización: el anfitrión simula, los demás envían input. La
-      arquitectura ya separa el `control` de cada jugador y guarda a todos en
-      `S.players`.
-- [ ] Nivel 4 "Juntos" y chat de sala.
+- [ ] Servidor TURN propio para redes muy restrictivas (hoy se usan los STUN públicos).
+- [ ] Nuevas noches y modo supervivencia infinita.
