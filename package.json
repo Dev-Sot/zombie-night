@@ -1,0 +1,10 @@
+{
+  "name": "noche-sin-luna",
+  "private": true,
+  "type": "module",
+  "description": "Supervivencia zombie top-down en pixel art.",
+  "scripts": {
+    "dev": "npx serve .",
+    "check": "node tools/check.js"
+  }
+}
