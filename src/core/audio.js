@@ -124,6 +124,8 @@ const SFX = {
   uiHover(t) { osc('square', 1400, 0, t, 0.015, 0.04); },
   uiClick(t) { osc('square', 700, 1100, t, 0.05, 0.08); },
   land(t) { nz('lowpass', 800, t, 0.12, 0.15); },
+  ping(t) { osc('sine', 1560, 0, t, 0.07, 0.12); osc('sine', 2080, 0, t + 0.07, 0.12, 0.1); },
+  chat(t) { osc('triangle', 880, 0, t, 0.05, 0.07); },
 };
 
 export const sfxHook = { fn: null };

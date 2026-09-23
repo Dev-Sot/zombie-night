@@ -29,6 +29,57 @@ export function hideOverlays() { OVERLAYS.forEach((o) => $(o).classList.add('hid
 export function setHud(on) {
   $('hud').classList.toggle('hidden', !on);
   $('topControls').classList.toggle('hidden', !on);
+  $('chat').classList.toggle('hidden', !on || !room.role);
+  if (!on) closeChat();
+}
+
+// ---------------- chat ----------------
+const chatLog = [];
+function chatLine(m) {
+  const d = document.createElement('div');
+  d.className = 'msg';
+  const n = document.createElement('b');
+  n.style.color = TINT_CSS[m.idx] || '#e9e6df';
+  n.textContent = `${m.name}: `;
+  const t = document.createElement('span');
+  t.textContent = m.text;
+  d.append(n, t);
+  return d;
+}
+export function chatMessage(m) {
+  chatLog.push(m);
+  if (chatLog.length > 40) chatLog.shift();
+  for (const id of ['chatLog', 'lobbyChatLog']) {
+    const box = $(id);
+    const line = chatLine(m);
+    box.appendChild(line);
+    while (box.children.length > (id === 'chatLog' ? 6 : 30)) box.firstChild.remove();
+    box.scrollTop = box.scrollHeight;
+    if (id === 'chatLog') setTimeout(() => line.classList.add('old'), 9000);
+  }
+}
+export function openChat() {
+  const inp = $('chatInput');
+  $('chat').classList.add('open');
+  inp.classList.remove('hidden');
+  setTimeout(() => inp.focus(), 0);
+}
+function closeChat() {
+  const inp = $('chatInput');
+  inp.value = ''; inp.blur(); inp.classList.add('hidden');
+  $('chat').classList.remove('open');
+}
+function initChat() {
+  $('chatInput').addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { H.onChat(e.target.value); closeChat(); }
+    if (e.key === 'Escape') closeChat();
+  });
+  $('chatInput').addEventListener('blur', () => setTimeout(closeChat, 0));
+  $('lobbyChatInput').addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { H.onChat(e.target.value); e.target.value = ''; }
+  });
 }
 
 export function fade(fn, ms = 450) {
@@ -79,6 +130,7 @@ export function initUI(handlers) {
   $('btnRetry').addEventListener('click', () => H.onRestart());
   $('btnDeathMenu').addEventListener('click', () => H.onEndMenu());
   initCoop();
+  initChat();
 
   bus.on('banner', ({ text, danger }) => banner(text, danger));
   bus.on('toast', (t) => toast(t));
@@ -338,6 +390,7 @@ function initCoop() {
 export function renderLobby() {
   const inRoom = !!room.role;
   $('coopJoin').classList.toggle('hidden', inRoom);
+  if (!inRoom) { chatLog.length = 0; $('lobbyChatLog').innerHTML = ''; $('chatLog').innerHTML = ''; }
   $('coopLobby').classList.toggle('hidden', !inRoom);
   $('btnCoopBack').textContent = inRoom ? 'SALIR DE LA SALA' : 'VOLVER';
   if (!inRoom) return;

@@ -44,6 +44,12 @@
   <div class="subtitles hidden" id="subtitles"></div>
   <div class="skip hidden" id="skipHint">CLIC / ESPACIO PARA SALTAR</div>
 
+  <!-- chat (multijugador) -->
+  <div class="chat hidden" id="chat">
+    <div class="chat-log" id="chatLog"></div>
+    <input class="chat-input hidden" id="chatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="ENTER ENVIAR  ·  ESC CERRAR">
+  </div>
+
   <div class="topControls hidden" id="topControls">
     <button id="pauseBtn">PAUSA</button>
   </div>
@@ -99,6 +105,10 @@
       <div class="slots" id="lobbySlots"></div>
       <div class="lobby-levels" id="lobbyLevels"></div>
       <div class="diff-row"><span>DIFICULTAD</span><div class="diff-toggle" id="lobbyDiff"></div></div>
+      <div class="lobby-chat">
+        <div class="chat-log open" id="lobbyChatLog"></div>
+        <input class="chat-input" id="lobbyChatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="ESCRIBI A LA SALA Y APRETA ENTER">
+      </div>
       <div class="lobby-wait" id="lobbyWait">Esperando que el anfitrión empiece la partida...</div>
       <button class="btn" id="btnStartCoop">EMPEZAR</button>
     </div>
@@ -133,6 +143,8 @@
       <div><b>F</b> linterna</div>
       <div><b>ESC</b> pausa</div>
       <div><b>MANTENER E</b> revivir compañero</div>
+      <div><b>G / CLIC MEDIO</b> marcar lugar</div>
+      <div><b>T / ENTER</b> chat (online)</div>
     </div>
     <button class="btn ghost" data-back>VOLVER</button>
   </div>

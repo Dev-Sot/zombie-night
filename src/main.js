@@ -38,6 +38,7 @@ ui.initUI({
   onCoopLeave: () => { leaveRoom(); ui.renderLobby(); },
   onCoopLevel: (id) => { if (room.role === 'host') { room.level = id; broadcastLobby(); } },
   onCoopStart: () => { if (room.role === 'host') game.hostStart(room.level); },
+  onChat: (text) => game.sendChat(text),
   onCoopDiff: (id) => { if (room.role === 'host') { room.diff = id; broadcastLobby(); } },
 });
 ui.setThumbs(game.levelThumbs());

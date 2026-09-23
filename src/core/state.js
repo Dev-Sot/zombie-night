@@ -12,6 +12,7 @@ export const S = {
   decals: [],
   lights: [],         // luces temporales (fogonazos, explosiones, bengalas)
   floaters: [],       // textos flotantes (+monedas)
+  pings: [],          // marcas de jugadores en el mapa
   t: 0,
   timeScale: 1,
   hitstop: 0,

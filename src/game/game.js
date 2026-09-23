@@ -16,6 +16,7 @@ import { startObjectives, updateObjectives, objectiveTarget, interactHint, drawG
 import { LEVELS, SHOP_ITEMS } from './levels.js';
 import { room, broadcast, broadcastLobby, sendToHost, leaveRoom, setNetHandlers } from '../net/net.js';
 import { encodeSnapshot, applySnapshot, interpolate } from '../net/sync.js';
+import { pingTarget, addPing, updatePings, drawPings } from './social.js';
 import * as ui from '../ui/ui.js';
 
 // Modos: menu (escena de fondo) · intro · play · shop · paused · outro · dead · results
@@ -30,7 +31,7 @@ function resetState() {
   Object.assign(S, {
     zombies: [], bullets: [], projectiles: [], pickups: [], particles: [], decals: [], lights: [], floaters: [],
     players: [], t: 0, timeScale: 1, hitstop: 0, shake: 0, wave: 0, kills: 0, shots: 0, hits: 0,
-    objective: null, boss: null, heli: null, surge: 0, spawnBoost: 1, over: false, menuMode: false,
+    objective: null, boss: null, heli: null, surge: 0, spawnBoost: 1, over: false, menuMode: false, pings: [],
   });
   S.cam.cine = null;
   Object.assign(WV, { queue: 0, alertQueue: 0, timer: 0, next: 60 * 12 });
@@ -378,6 +379,11 @@ setNetHandlers({
 });
 
 function hostMsg(from, msg) {
+  if (msg.t === 'chat') {
+    const who = room.players.find((q) => q.id === from);
+    if (who) relayChat(who.idx, who.name, msg.text);
+    return;
+  }
   const p = G.remote.get(from);
   if (msg.t === 'left') {
     if (p) { p.gone = true; p.boarded = true; p.dead = false; }
@@ -391,9 +397,38 @@ function hostMsg(from, msg) {
     c.wheel += msg.w || 0;
     for (const k of msg.k || []) c.keys.add(k);
   } else if (msg.t === 'buy') buy(msg.k, p);
+  else if (msg.t === 'ping') { const pg = { idx: p.idx, x: msg.x, y: msg.y, kind: msg.kind, zid: msg.zid }; addPing(pg); broadcast({ t: 'ping', ...pg }); }
+}
+
+// ---------------- chat ----------------
+const cleanChat = (t) => String(t || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 80);
+function relayChat(idx, name, text) {
+  text = cleanChat(text);
+  if (!text) return;
+  const m = { t: 'chat', idx, name, text };
+  broadcast(m);
+  ui.chatMessage(m);
+  sfx('chat');
+}
+export function sendChat(text) {
+  text = cleanChat(text);
+  if (!text || !room.role) return;
+  if (room.role === 'host') {
+    const me0 = room.players.find((q) => q.idx === room.me);
+    relayChat(room.me, me0?.name || 'ANFITRION', text);
+  } else sendToHost({ t: 'chat', text });
+}
+
+function localPing(p) {
+  const m = localControl.mouse;
+  const pg = { idx: p.idx || 0, ...pingTarget(m.x + S.cam.x, m.y + S.cam.y, p) };
+  addPing(pg);
+  if (net.role === 'host') broadcast({ t: 'ping', ...pg });
+  else if (net.role === 'client') sendToHost({ t: 'ping', x: pg.x, y: pg.y, kind: pg.kind, zid: pg.zid });
 }
 
 function clientMsg(msg) {
+  if (msg.t === 'chat') { ui.chatMessage(msg); sfx('chat'); return; }
   if (msg.t === 'start') return startLevel(msg.level, { roster: msg.roster, diff: msg.diff });
   if (msg.t === 'toLobby') return toLobby();
   if (!S.world || G.mode === 'menu') return;
@@ -401,6 +436,8 @@ function clientMsg(msg) {
     const hadHeli = !!S.heli;
     applySnapshot(msg, net.me);
     if (!hadHeli && S.heli) ambient('heli', true);
+  } else if (msg.t === 'ping') {
+    if (msg.idx !== room.me) addPing(msg);
   } else if (msg.t === 'outro') {
     setTimeout(beginOutro, 900);
   } else if (msg.t === 'end') {
@@ -529,6 +566,7 @@ function step() {
     if (G.introT > 30 && anyPressed()) endIntro();
   }
   if (m === 'play' && (localControl.pressed('Escape') || localControl.pressed('KeyP'))) { pause(); endFrame(); return; }
+  if (m === 'play' && mp() && (localControl.pressed('KeyT') || localControl.pressed('Enter'))) ui.openChat();
   if (S.hitstop > 0 && !mp()) { S.hitstop--; updateCamera(); endFrame(); return; }
   S.hitstop = 0;
 
@@ -539,6 +577,8 @@ function step() {
     if (net.role === 'client') clientStep(p);
     else simulate(G.mode);
 
+    if (G.mode === 'play' && !p.dead && (localControl.pressed('KeyG') || localControl.pressed('Ping'))) localPing(p);
+    updatePings();
     if (G.mode === 'play') {
       ui.prompt(localPrompt(p));
       if (!interactHint(p) && nearShop(p) && localControl.pressed('KeyE')) openShop(p);
@@ -680,6 +720,7 @@ function render() {
   drawFloaters();
   drawWeather();
   drawShop(true);
+  drawPings();
   drawObjectiveArrow();
   c.x = ox; c.y = oy;
 

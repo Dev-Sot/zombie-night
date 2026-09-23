@@ -27,11 +27,15 @@ export function initInput(canvas) {
   canvas.parentElement.addEventListener('pointermove', pos);
   canvas.parentElement.addEventListener('pointerdown', (e) => {
     pos(e);
-    if (e.target === canvas) { mouse.down = true; mouse.clicked = true; }
+    if (e.target !== canvas) return;
+    if (e.button === 1) { edges.add('Ping'); e.preventDefault(); return; }
+    if (e.button === 0) { mouse.down = true; mouse.clicked = true; }
   });
   window.addEventListener('pointerup', () => { mouse.down = false; });
   canvas.parentElement.addEventListener('wheel', (e) => { wheel += Math.sign(e.deltaY); }, { passive: true });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+  // sin autoscroll con el clic del medio (se usa para marcar)
+  canvas.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
 }
 
 export const localControl = {
