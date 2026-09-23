@@ -25,12 +25,19 @@ Objetivo: que se sienta una experiencia dirigida (juego + película), no un
 mapa vacío con props sueltos.
 - [x] Linterna con on/off (tecla F) — apagada deja solo un radio de visión
       mínimo, mucho más tenso.
-- [x] Parche temporal del arma en la mano (visible de perfil) mientras se
-      decide el cambio de pack de personajes.
-- [ ] Cambiar personaje/zombies/armas a un pack con animaciones de
-      apuntado/disparo reales (ver decisión de assets abajo).
+- [x] Personaje y 3 zombies cambiados al pack *Post-Apocalypse* de
+      TheLazyStone — 4 direcciones reales (no flip), muchísima mejor
+      calidad. Corazones y el ícono de arma del HUD también vienen de ese
+      pack ahora, todo combina.
+- [x] Se investigó volver a poner el arma en la mano con el pack nuevo (que
+      sí trae capas de arma separadas) — el ZIP no tiene metadata de
+      alineación y no se pudo lograr sin que se viera roto. Decisión: el
+      personaje se ve "desarmado" pero el cono de luz + el fogonazo al
+      disparar + el ícono de arma en el HUD comunican que está armado. Ver
+      `CLAUDE.md` antes de reintentarlo.
 - [ ] Mapa real con calles/edificios en vez de props sueltos sobre una
-      arena vacía.
+      arena vacía — el pack de TheLazyStone trae 550+ edificios sin usar
+      todavía, es el siguiente paso.
 - [ ] Música ambiental (evaluar opciones con licencia clara, no de YouTube
       directo — ver notas de assets).
 

@@ -34,10 +34,8 @@
     justify-content:space-between; align-items:flex-start; font-size:8px; text-shadow:2px 2px 0 #000;
   }
   .hpwrap{ width:130px; }
-  .hearts{ display:flex; gap:2px; font-size:13px; line-height:1; }
-  .hearts .heart{ color:#3a2228; }
-  .hearts .heart.full{ color:var(--danger); }
-  .hearts .heart.half{ color:var(--danger); opacity:.45; }
+  .hearts{ display:flex; gap:2px; }
+  .hearts img{ width:16px; height:auto; image-rendering:pixelated; }
   .hplabel{ margin-top:3px; color:var(--muted); }
   .waveinfo{ text-align:right; color:var(--accent); }
   .waveinfo .k{ color:var(--muted); font-size:7px; margin-top:3px; }
@@ -45,7 +43,12 @@
     position:absolute; bottom:14px; right:14px; font-size:11px; color:var(--ink);
     text-shadow:2px 2px 0 #000; text-align:right; display:flex; align-items:center; gap:6px;
   }
-  .ammo .weaponIcon{ width:30px; height:auto; image-rendering:pixelated; }
+  .ammo .weaponSlot{
+    position:relative; width:38px; height:40px; image-rendering:pixelated;
+    background:url('assets/p2_inv_cell.png') center/contain no-repeat;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ammo .weaponSlot img{ width:20px; height:auto; image-rendering:pixelated; }
   .ammo .reload{ color:var(--danger); font-size:8px; margin-top:2px; animation:blink .5s steps(2) infinite; }
   .hidden{ display:none !important; }
   #muteBtn{
@@ -117,7 +120,7 @@
     <div id="objArrow"></div>
     <div class="wavebanner" id="waveBanner">OLEADA 1</div>
     <div class="ammo">
-      <img class="weaponIcon" src="assets/slot_pistol.png" alt="">
+      <div class="weaponSlot"><img src="assets/p2_icon_pistol.png" alt=""></div>
       <div>
         <div id="ammoLabel">8 / 32</div>
         <div class="reload hidden" id="reloadLabel">RECARGANDO...</div>
@@ -203,17 +206,16 @@ fog.width = GW; fog.height = GH;
 const fctx = fog.getContext('2d');
 
 // ---------------- sprites ----------------
-// Character/zombie sheets: 9 frames each (down x3, side x3, up x3), bottom-aligned.
-// Source: "Zombie Apocalypse Tileset" by Ittai Manero (itch.io, free, credit appreciated).
+// Character/zombies: 4 real directional sheets each (down/up/side/side-left,
+// no runtime flip needed) — "Post-Apocalypse Pixel Art Asset Pack" by
+// TheLazyStone (itch.io). Env props/pickups: "Zombie Apocalypse Tileset" by
+// Ittai Manero (itch.io). Both free, credit in README.
+const DIRS=['down','up','side','sideleft'];
+const ENTITY_FRAMES={ player:6, zrunner:6, zshambler:8, zbrute:8 };
 const SPRITE_FILES={
-  player:'assets/player.png',
-  zombie_shambler:'assets/zombie_shambler.png',
-  zombie_runner:'assets/zombie_runner.png',
-  zombie_brute:'assets/zombie_brute.png',
   pickup_fuel:'assets/pickup_fuel.png',
   pickup_health:'assets/pickup_health.png',
   pickup_ammo:'assets/pickup_ammo.png',
-  gun:'assets/gun.png',
   prop_car:'assets/prop_car.png',
   prop_bush:'assets/prop_bush.png',
   prop_fence:'assets/prop_fence.png',
@@ -222,12 +224,17 @@ const SPRITE_FILES={
   tile_ground:'assets/tile_ground.png',
   slot_fuel:'assets/slot_fuel.png'
 };
+Object.keys(ENTITY_FRAMES).forEach(base=>{
+  DIRS.forEach(dir=>{ SPRITE_FILES[base+'_'+dir]='assets/p2_'+base+'_'+dir+'.png'; });
+});
 const SPRITES={};
 const ANIM={};
 let assetsLoaded=false;
-function prepAnim(key,frames){
-  const img=SPRITES[key];
-  ANIM[key]={img, frames, fw: img.naturalWidth/frames, fh: img.naturalHeight};
+function prepEntity(base,frames){
+  ANIM[base]=DIRS.map(dir=>{
+    const img=SPRITES[base+'_'+dir];
+    return {img, frames, fw:img.naturalWidth/frames, fh:img.naturalHeight};
+  });
 }
 function loadAssets(done){
   const keys=Object.keys(SPRITE_FILES);
@@ -240,34 +247,29 @@ function loadAssets(done){
     SPRITES[key]=img;
   });
   function finish(){
-    prepAnim('player',9);
-    prepAnim('zombie_shambler',9);
-    prepAnim('zombie_runner',9);
-    prepAnim('zombie_brute',9);
+    Object.keys(ENTITY_FRAMES).forEach(base=>prepEntity(base, ENTITY_FRAMES[base]));
     assetsLoaded=true;
     done();
   }
 }
-// direction: down = frames 0-2, side (flip for left) = frames 3-5, up = frames 6-8
 function dirGroup(angle){
   let a=angle;
   while(a>Math.PI) a-=Math.PI*2;
   while(a<-Math.PI) a+=Math.PI*2;
-  if(a>Math.PI/4 && a<Math.PI*3/4) return {group:0, flip:false};
-  if(a<-Math.PI/4 && a>-Math.PI*3/4) return {group:2, flip:false};
-  return {group:1, flip:Math.cos(a)<0};
+  if(a>Math.PI/4 && a<Math.PI*3/4) return 0; // down
+  if(a<-Math.PI/4 && a>-Math.PI*3/4) return 1; // up
+  if(a>=-Math.PI/4 && a<=Math.PI/4) return 2; // side (right)
+  return 3; // side-left
 }
 function drawSpriteEntity(key, angle, walkCounter, scale, filter){
-  const a=ANIM[key];
-  if(!a) return;
-  const {group,flip}=dirGroup(angle);
-  const cycle=Math.floor(walkCounter)%3;
-  const frame=group*3+cycle;
+  const dirs=ANIM[key];
+  if(!dirs) return;
+  const a=dirs[dirGroup(angle)];
+  const cycle=Math.floor(walkCounter)%a.frames;
   const sw=a.fw, sh=a.fh, dw=sw*scale, dh=sh*scale;
   ctx.save();
-  if(flip) ctx.scale(-1,1);
   if(filter) ctx.filter=filter;
-  ctx.drawImage(a.img, frame*sw,0,sw,sh, -dw/2,-dh, dw,dh);
+  ctx.drawImage(a.img, cycle*sw,0,sw,sh, -dw/2,-dh, dw,dh);
   ctx.restore();
 }
 
@@ -433,17 +435,18 @@ function updateObjectiveHUD(){
 
 // ---------------- hearts HUD ----------------
 const HEART_COUNT=5;
+const HEART_SRC={ full:'assets/p2_heart_full.png', half:'assets/p2_heart_half.png', empty:'assets/p2_heart_empty.png' };
 const heartsEl=document.getElementById('hearts');
 for(let i=0;i<HEART_COUNT;i++){
-  const s=document.createElement('span'); s.className='heart'; s.textContent='♥';
-  heartsEl.appendChild(s);
+  const img=document.createElement('img'); img.src=HEART_SRC.full; img.alt='';
+  heartsEl.appendChild(img);
 }
 function updateHearts(hp,maxHp){
   const per=maxHp/HEART_COUNT;
   const nodes=heartsEl.children;
   for(let i=0;i<HEART_COUNT;i++){
     const remain=hp-i*per;
-    nodes[i].className='heart'+(remain>=per?' full':remain>0?' half':'');
+    nodes[i].src = remain>=per ? HEART_SRC.full : remain>0 ? HEART_SRC.half : HEART_SRC.empty;
   }
 }
 
@@ -899,24 +902,16 @@ function drawSurvivor(){
   ctx.translate(sx,sy);
   // shadow
   ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0,7,7,3,0,0,Math.PI*2); ctx.fill();
-  drawSpriteEntity('player', player.angle, player.walk*0.6, 1.15, hurt?'brightness(2.2)':null);
-  // held-weapon badge: the base sprite has no weapon pose of its own, so a
-  // small fixed icon stands in until the sprites get swapped for a pack
-  // with real aim/attack animations (see CLAUDE.md).
-  const {group,flip}=dirGroup(player.angle);
-  const gunImg=SPRITES.gun;
-  if(group===1 && gunImg && gunImg.naturalWidth){
-    const s=1.15, gw=gunImg.naturalWidth*s, gh=gunImg.naturalHeight*s;
-    ctx.save();
-    if(flip) ctx.scale(-1,1);
-    ctx.drawImage(gunImg, 4,-8, gw, gh);
-    ctx.restore();
-  }
+  drawSpriteEntity('player', player.angle, player.walk, 1.05, hurt?'brightness(2.2)':null);
   ctx.restore();
+  // "armed" reads from the weapon slot in the HUD + the flashlight cone +
+  // the muzzle-flash particle on fire, not from a sprite in the character's
+  // hand — the pack's weapon-overlay frames have no alignment data to
+  // composite them correctly onto the body (see CLAUDE.md before retrying).
 }
 
-const ZSPRITE={ shambler:'zombie_shambler', runner:'zombie_runner', brute:'zombie_brute' };
-const ZSCALE={ shambler:1.15, runner:1.15, brute:1.8 };
+const ZSPRITE={ shambler:'zshambler', runner:'zrunner', brute:'zbrute' };
+const ZSCALE={ shambler:1.05, runner:1.0, brute:1.35 };
 function drawZombie(z){
   const [sx,sy]=worldToScreen(z.x,z.y);
   if(sx<-30||sy<-30||sx>GW+30||sy>GH+30) return;
@@ -930,7 +925,7 @@ function drawZombie(z){
   }
   const flash = z.hitFlash>0;
   ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(0,7,z.r*0.8,3,0,0,Math.PI*2); ctx.fill();
-  drawSpriteEntity(ZSPRITE[z.type], z.angle, z.walk*0.6, ZSCALE[z.type], flash?'brightness(3) grayscale(1)':null);
+  drawSpriteEntity(ZSPRITE[z.type], z.angle, z.walk, ZSCALE[z.type], flash?'brightness(3) grayscale(1)':null);
   ctx.restore();
 
   if(z.state!=='dead' && z.hp<z.maxHp){

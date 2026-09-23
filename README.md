@@ -36,5 +36,7 @@ multijugador, arte).
 
 ## Créditos
 
-Sprites de personaje, zombies y objetos: *Zombie Apocalypse Tileset* por
-[Ittai Manero](https://ittaimanero.itch.io/zombie-apocalypse-tileset).
+- Jugador y zombies: *Post-Apocalypse Pixel Art Asset Pack* por
+  [TheLazyStone](https://thelazystone.itch.io/post-apocalypse-pixel-art-asset-pack).
+- Mapa, props y objetos recogibles: *Zombie Apocalypse Tileset* por
+  [Ittai Manero](https://ittaimanero.itch.io/zombie-apocalypse-tileset).
