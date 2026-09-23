@@ -42,45 +42,41 @@ mapa vacío con props sueltos.
       pausa (tecla ESC o botón), pantalla de ajustes (sonido + recordatorio
       de controles) y pantalla de créditos. La selección de nivel pasó a
       ser una sub-pantalla de "JUGAR", con botón VOLVER.
-- [x] **Nivel 1 rehecho como calle lineal**: se reemplazó la arena abierta
-      por un pasillo recto de 2400px con edificios reales a los dos lados
-      (fachada con textura tileable + ventanas/puertas/toldos/antenas
-      puestas a intervalos), árboles pegados a las fachadas y autos
-      estacionados — todo del pack de TheLazyStone. El jugador y los
-      zombies quedan encerrados entre los edificios (clamp de posición en
-      X, especie de colisión básica de corredor — todavía no es colisión
-      real contra props individuales). Los bidones de combustible y el
-      generador se reubicaron a lo largo de la calle. Las oleadas ahora
-      aparecen adelante/atrás del jugador (no en los bordes de una arena
-      gigante). Verificado en navegador: el HUD ya no se cruza con props
-      (ese problema desaparece al no tener props sueltos), la cámara sigue
-      bien en vertical, y se pudo completar el nivel disparando en el
-      camino.
+- [x] ~~Nivel 1 como calle lineal (pasillo recto)~~ — **descartado**: al
+      usuario no le gustó cómo quedó ("no me gustó como te quedó"), se veía
+      como un pasillo, no como un barrio. Reemplazado por el punto
+      siguiente.
+- [x] **Nivel 1 rehecho como barrio abierto** (900×750, cámara libre en X e
+      Y otra vez): calle en cruz (asfalto con línea central punteada,
+      autos estacionados, farolas de verdad) + 2 casas + la tienda, cada
+      una con techo de color, puerta, ventanas y antena/rejilla, cercas en
+      los patios, ~40 árboles repartidos evitando calle/edificios. Los
+      edificios ahora **sí bloquean el paso** (colisión eje por eje contra
+      cada rectángulo, jugador y zombies) — verificado en navegador: el
+      personaje queda físicamente detenido contra la pared de una casa.
+      Bidones/generador/tienda reubicados dentro del barrio.
+- [x] **Tienda + monedas**: los zombies dejan 1 moneda (3 el brute) al
+      morir; tecla **E** cerca de la tienda abre un menú para comprar
+      munición, botiquín, o una escopeta (más pellets/daño, cadencia más
+      lenta — cambia el disparo de verdad, no es solo un ícono). Todo se
+      resetea en cada intento nuevo, como la vida/munición.
+- [x] **Lluvia** (pedido explícito: "agrega animación... que tenga
+      lluvia") — capa de partículas en espacio de pantalla, activa en el
+      Nivel 1, reutilizable/desactivable para otros niveles (`rainOn`).
 - [ ] Música ambiental (evaluar opciones con licencia clara, no de YouTube
       directo — ver notas de assets).
 
-**Pendiente de que el usuario lo juegue:** el pasillo es más angosto que la
-arena vieja (228px de ancho para moverse), así que hay menos espacio para
-esquivar. Un bot de prueba automatizado murió varias veces sin pelear bien
-(no es representativo de un jugador real esquivando), así que la dificultad
-real hay que juzgarla jugándolo — si se siente injusto, ajustar cantidad de
-zombies por oleada o el ancho de la calle (`BUILD_W` en `index.html`).
+**El usuario dijo que juzgaría el diseño completo al final** — esta fase
+cierra el pedido explícito de "barrio real + tienda + monedas + lluvia +
+que se sienta un juego decente". Falta su veredicto antes de seguir
+afinando.
 
-## Visión ampliada (pedida por el usuario, referencias: capturas de
-Eastward/mapa boscoso, menú de *Heat Guardian*, menú de *Obsidian* y HUD de
-un shooter top-down con barras) — pendiente de romper en fases concretas:
-- ~~Mapa lineal de Nivel 1~~ — hecho, ver Fase 1.5 arriba.
-- **Economía + tienda**: monedas que sueltan los zombies o se encuentran en
-  el mapa; una tienda en el Nivel 1 (interactuar con **E**) para comprar
-  armas/objetos. Ahora que existe la calle, ya hay dónde poner la tienda —
-  siguiente candidato natural.
-- **Inventario real**: más allá del ícono de arma actual — múltiples armas,
-  cambiar entre ellas, quizás objetos consumibles.
-- **Colisión de verdad contra props individuales** (autos/árboles como
-  cobertura) — hoy solo existe el límite de la calle (no chocar contra
-  edificios), no colisión objeto por objeto.
-- **Más zombies / dificultad**: ajustar según feedback de juego real (ver
-  nota de dificultad arriba).
+## Visión ampliada — pendientes
+- **Inventario real**: más allá de pistola→escopeta — múltiples armas
+  simultáneas, cambiar entre ellas, objetos consumibles.
+- **Colisión contra props individuales** (autos/árboles como cobertura) —
+  hoy solo los edificios colisionan, los props sueltos no.
+- **Más zombies / dificultad**: ajustar según feedback de juego real.
 - **Pensado para multijugador a futuro** (chat, etc. — Fase 4) — mientras
   tanto, priorizar que el modo un jugador ya sea entretenido por sí solo.
 

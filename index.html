@@ -76,6 +76,11 @@
     border-left:5px solid transparent; border-right:5px solid transparent; border-bottom:9px solid var(--accent);
     transform-origin:50% 65%; opacity:0; transition:opacity .2s;
   }
+  #interactPrompt{
+    position:absolute; bottom:70px; left:50%; transform:translateX(-50%);
+    font-size:8px; color:var(--ink); background:rgba(0,0,0,.6); border:2px solid var(--accent);
+    padding:6px 10px; border-radius:5px; letter-spacing:1px;
+  }
   .overlay{
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:12px; text-align:center; padding:20px; z-index:10;
@@ -114,6 +119,11 @@
   .levelbtn .lvlname{ font-size:9px; }
   .levelbtn:disabled{ opacity:.35; filter:grayscale(1); cursor:not-allowed; background:var(--muted); border-bottom-color:#2a2a2a; }
   .btnrow{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .shoprow{ display:flex; flex-direction:column; gap:10px; width:100%; max-width:340px; }
+  .shopItem{ display:flex; align-items:center; gap:10px; justify-content:flex-start; width:100%; }
+  .shopItem img{ width:24px; height:auto; image-rendering:pixelated; }
+  .shopItem span{ flex:1; text-align:left; font-size:9.5px; }
+  .shopItem:disabled{ opacity:.4; cursor:not-allowed; filter:grayscale(1); }
   @keyframes blink{ 50%{opacity:0;} }
 </style>
 </head>
@@ -134,13 +144,15 @@
       <div class="waveinfo">
         <div id="waveLabel">OLEADA 1</div>
         <div class="k" id="killLabel">BAJAS 0</div>
+        <div class="k" id="coinLabel">$ 0</div>
       </div>
     </div>
     <div id="objLabel"></div>
     <div id="objArrow"></div>
+    <div id="interactPrompt" class="hidden">E · TIENDA</div>
     <div class="wavebanner" id="waveBanner">OLEADA 1</div>
     <div class="ammo">
-      <div class="weaponSlot"><img src="assets/p2_icon_pistol.png" alt=""></div>
+      <div class="weaponSlot"><img id="weaponIconImg" src="assets/p2_icon_pistol.png" alt=""></div>
       <div>
         <div id="ammoLabel">8 / 32</div>
         <div class="reload hidden" id="reloadLabel">RECARGANDO...</div>
@@ -212,6 +224,29 @@
       <button class="btn alt" id="pauseSettingsBtn">AJUSTES</button>
       <button class="btn alt" id="pauseMenuBtn">MENÚ PRINCIPAL</button>
     </div>
+  </div>
+
+  <div class="overlay hidden" id="shopOverlay">
+    <div class="title" style="font-size:16px;">TIENDA</div>
+    <div class="sub">Monedas: <b id="shopCoins">0</b></div>
+    <div class="shoprow">
+      <button class="btn shopItem" id="buyAmmoBtn">
+        <img src="assets/pickup_ammo.png" alt="">
+        <span>Munición (+20)</span>
+        <b>15</b>
+      </button>
+      <button class="btn shopItem" id="buyHealthBtn">
+        <img src="assets/pickup_health.png" alt="">
+        <span>Botiquín (+40 vida)</span>
+        <b>20</b>
+      </button>
+      <button class="btn shopItem" id="buyShotgunBtn">
+        <img src="assets/p2_icon_shotgun.png" alt="">
+        <span>Escopeta (más daño de cerca)</span>
+        <b>60</b>
+      </button>
+    </div>
+    <button class="btn alt" id="shopCloseBtn">CERRAR</button>
   </div>
 
   <div class="overlay hidden" id="introOverlay">
@@ -292,7 +327,10 @@ const SPRITE_FILES={
   p3_tree2:'assets/p3_tree2.png',
   p3_car_red:'assets/p3_car_red.png',
   p3_car_gray:'assets/p3_car_gray.png',
-  p3_car_scrap:'assets/p3_car_scrap.png'
+  p3_car_scrap:'assets/p3_car_scrap.png',
+  p3_road:'assets/p3_road.png',
+  p3_streetlight:'assets/p3_streetlight.png',
+  p3_fence_h:'assets/p3_fence_h.png'
 };
 Object.keys(ENTITY_FRAMES).forEach(base=>{
   DIRS.forEach(dir=>{ SPRITE_FILES[base+'_'+dir]='assets/p2_'+base+'_'+dir+'.png'; });
@@ -450,53 +488,92 @@ settingsSoundBtn.addEventListener('click', toggleMute);
 let bestWave=1;
 try{ const v=localStorage.getItem('nsl_bestWave'); if(v) bestWave=parseInt(v,10)||1; }catch(e){}
 
-// ---------------- world ----------------
-// Nivel 1 es una calle recta (no una arena abierta): ARENA_W == GW así que
-// la cámara nunca se mueve en X, solo se recorre en Y (de abajo, donde
-// arranca el apagón, hacia arriba, donde está el generador).
-const ARENA_W=GW, ARENA_H=2400;
-const BUILD_W=70; // ancho de cada edificio a los lados
-const WALK_MIN_X=BUILD_W+8, WALK_MAX_X=ARENA_W-BUILD_W-8;
-const PLAYER_START={x:ARENA_W/2, y:ARENA_H-140};
+// ---------------- world: barrio abierto ----------------
+// Nivel 1 es un barrio (no un pasillo lineal): dos casas + la tienda
+// alrededor de una calle en cruz, con patios, cercas y árboles. La cámara
+// se mueve libre en X e Y (como al principio), pero ahora el mapa tiene
+// estructura real en vez de props sueltos.
+const ARENA_W=900, ARENA_H=750;
+const PLAYER_START={x:450, y:660};
 let camX=0, camY=0, shake=0;
 
-// farolas regulares a lo largo de la calle, alternando de vereda
-const lamps=[];
-for(let y=150, i=0; y<ARENA_H-150; y+=300, i++){
-  lamps.push({x: i%2===0 ? WALK_MIN_X+14 : WALK_MAX_X-14, y, r:78+Math.random()*14});
+// calle en cruz: una vertical + una horizontal
+const ROAD_V={x:400, y:0, w:90, h:ARENA_H};
+const ROAD_H={x:0, y:330, w:ARENA_W, h:70};
+function onRoad(x,y){
+  return (x>ROAD_V.x&&x<ROAD_V.x+ROAD_V.w) || (y>ROAD_H.y&&y<ROAD_H.y+ROAD_H.h);
 }
 
-// decoración de fachada (ventanas/puertas/toldos/antenas) a intervalos fijos
-const DECOR_LEFT=['p3_window','p3_window','p3_door','p3_awning_blue','p3_vent','p3_antenna'];
-const DECOR_RIGHT=['p3_window','p3_window','p3_door','p3_awning_orange','p3_vent','p3_antenna'];
+// edificios sólidos (colisión + fachada) — dos casas y la tienda
+const BUILDINGS=[
+  {x:60,  y:60,  w:180, h:150, roof:'#6b6f78', id:'houseA'},
+  {x:650, y:60,  w:190, h:150, roof:'#8a4a3a', id:'houseB'},
+  {x:610, y:470, w:160, h:120, roof:'#3a6b52', id:'shop'},
+];
+function buildingAt(id){ return BUILDINGS.find(b=>b.id===id); }
+function collidesBuilding(x,y,r){
+  for(const b of BUILDINGS){
+    if(x>b.x-r && x<b.x+b.w+r && y>b.y-r && y<b.y+b.h+r) return true;
+  }
+  return false;
+}
+
+// puerta (orientada hacia la calle más cercana) + toldo + ventanas por edificio
 const buildingDecor=[];
-for(let y=100; y<ARENA_H-100; y+=140+Math.random()*40){
-  buildingDecor.push({x:8, y, sprite:DECOR_LEFT[Math.floor(Math.random()*DECOR_LEFT.length)]});
-  buildingDecor.push({x:ARENA_W-BUILD_W+8, y:y+50, sprite:DECOR_RIGHT[Math.floor(Math.random()*DECOR_RIGHT.length)]});
-}
+BUILDINGS.forEach((b,bi)=>{
+  const doorY = b.id==='shop' ? b.y-2 : b.y+b.h-9;
+  const awningY = b.id==='shop' ? doorY-16 : doorY-16;
+  buildingDecor.push({x:b.x+b.w/2-8, y:doorY, sprite:'p3_door'});
+  buildingDecor.push({x:b.x+b.w/2-16, y:awningY, sprite: bi%2===0?'p3_awning_blue':'p3_awning_orange'});
+  buildingDecor.push({x:b.x+12, y:b.y+16, sprite:'p3_window'});
+  buildingDecor.push({x:b.x+b.w-26, y:b.y+16, sprite:'p3_window'});
+  buildingDecor.push({x:b.x+b.w-24, y:b.y-13, sprite: bi===0?'p3_antenna':'p3_vent'});
+});
 
-// árboles pegados a las fachadas + autos estacionados en la calle
+// farolas junto a la calle
+const lamps=[
+  {x:ROAD_V.x-18, y:180, r:80}, {x:ROAD_V.x+ROAD_V.w+18, y:180, r:80},
+  {x:ROAD_V.x-18, y:600, r:80}, {x:ROAD_V.x+ROAD_V.w+18, y:600, r:80},
+  {x:180, y:ROAD_H.y-18, r:80}, {x:720, y:ROAD_H.y-18, r:80},
+];
+
+// árboles en los patios/parque + autos estacionados junto a la calle
 const TREE_TYPES=['p3_tree1','p3_tree2'];
 const CAR_TYPES=['p3_car_red','p3_car_gray','p3_car_scrap'];
 const props=[];
-for(let y=120; y<ARENA_H-120; y+=170+Math.random()*70){
-  props.push({x:BUILD_W-16+Math.random()*8, y, sprite:TREE_TYPES[Math.floor(Math.random()*2)]});
-  if(Math.random()<0.75) props.push({x:ARENA_W-BUILD_W+8+Math.random()*8, y:y+45, sprite:TREE_TYPES[Math.floor(Math.random()*2)]});
+function scatterTrees(x0,y0,x1,y1,n){
+  for(let i=0;i<n;i++){
+    const x=x0+Math.random()*(x1-x0), y=y0+Math.random()*(y1-y0);
+    if(collidesBuilding(x,y,10) || onRoad(x,y)) continue;
+    props.push({x,y, sprite:TREE_TYPES[Math.floor(Math.random()*2)]});
+  }
 }
-for(let i=0;i<7;i++){
-  const y=220+Math.random()*(ARENA_H-440);
-  const leftSide=Math.random()<0.5;
-  const x=leftSide ? WALK_MIN_X+10+Math.random()*8 : WALK_MAX_X-30-Math.random()*8;
+scatterTrees(20,20,ARENA_W-20,ARENA_H-20,42);
+for(let i=0;i<6;i++){
+  const alongV=Math.random()<0.5;
+  const x = alongV ? ROAD_V.x+10+Math.random()*(ROAD_V.w-45) : 40+Math.random()*(ARENA_W-80);
+  const y = alongV ? 40+Math.random()*(ARENA_H-80) : ROAD_H.y+10+Math.random()*(ROAD_H.h-45);
   props.push({x,y, sprite:CAR_TYPES[Math.floor(Math.random()*CAR_TYPES.length)]});
 }
 
+// cercas de patio alrededor de las casas (no de la tienda) — solo visual
+BUILDINGS.forEach(b=>{
+  if(b.id==='shop') return;
+  for(let x=b.x-16; x<b.x+b.w+16; x+=48) props.push({x, y:b.y+b.h+16, sprite:'p3_fence_h'});
+});
+
 function worldToScreen(x,y){ return [x-camX, y-camY]; }
 
-// ---------------- player ----------------
+// ---------------- player / weapons / economy ----------------
+const WEAPONS={
+  pistol:{ magSize:8, fireCd:9, pellets:1, spread:0.06, dmg:10, icon:'assets/p2_icon_pistol.png' },
+  shotgun:{ magSize:6, fireCd:24, pellets:4, spread:0.22, dmg:9, icon:'assets/p2_icon_shotgun.png' }
+};
 const player={
   x:PLAYER_START.x, y:PLAYER_START.y, r:6, speed:1.55, hp:100, maxHp:100,
   angle:0, walk:0, mag:8, magSize:8, reserve:32, reloading:false, reloadT:0,
-  fireCd:0, hurtFlash:0, invuln:0, dead:false, lightOn:true
+  fireCd:0, hurtFlash:0, invuln:0, dead:false, lightOn:true,
+  weapon:'pistol', coins:0
 };
 
 // ---------------- state ----------------
@@ -510,8 +587,9 @@ let waveBannerT=0;
 // ---------------- level 1 objective: find fuel, power the generator ----------------
 // repartidos a lo largo de la calle: el jugador arranca cerca de ARENA_H y
 // avanza hacia y chico, donde está el generador (final de la cuadra).
-const FUEL_SPOTS=[{x:110,y:1850},{x:270,y:1300},{x:120,y:750}];
-const GENERATOR={x:ARENA_W/2,y:180,r:14};
+const FUEL_SPOTS=[{x:150,y:250},{x:740,y:250},{x:150,y:600}];
+const GENERATOR={x:450,y:40,r:14};
+const SHOP={x:690,y:460,r:22};
 let fuel=[], fuelCollected=0, genActive=false, genReached=false;
 let finalSurge=false, surgeKillsLeft=0, surgeSpawnLeft=0, surgeSpawnTimer=0, levelWon=false;
 
@@ -549,9 +627,19 @@ function updateHearts(hp,maxHp){
   }
 }
 
+// ---------------- weapons / economy HUD ----------------
+function updateWeaponHud(){
+  document.getElementById('weaponIconImg').src = WEAPONS[player.weapon].icon;
+}
+function updateCoinsHud(){
+  document.getElementById('coinLabel').textContent='$ '+player.coins;
+}
+
 function resetGame(){
-  player.x=PLAYER_START.x; player.y=PLAYER_START.y; player.hp=100; player.mag=player.magSize; player.reserve=32;
+  player.x=PLAYER_START.x; player.y=PLAYER_START.y; player.hp=100; player.coins=0;
+  player.weapon='pistol'; player.magSize=WEAPONS.pistol.magSize; player.mag=player.magSize; player.reserve=32;
   player.reloading=false; player.reloadT=0; player.fireCd=0; player.invuln=0; player.dead=false; player.lightOn=true;
+  updateWeaponHud();
   zombies=[]; bullets=[]; particles=[]; pickups=[];
   wave=0; killCount=0; t=0;
   setupObjective();
@@ -588,11 +676,12 @@ function pickZombieType(){
 function spawnZombie(){
   const type=pickZombieType();
   const cfg=ZTYPES[type];
-  // calle angosta: aparecen justo fuera de pantalla, adelante o atrás del jugador
-  const x=WALK_MIN_X+8+Math.random()*(WALK_MAX_X-WALK_MIN_X-16);
-  const ahead=Math.random()<0.55;
-  const rawY = ahead ? player.y-GH/2-30-Math.random()*40 : player.y+GH/2+30+Math.random()*40;
-  const y=Math.max(20, Math.min(ARENA_H-20, rawY));
+  // aparecen en el borde del mapa, en un lado al azar
+  let x,y; const side=Math.floor(Math.random()*4);
+  if(side===0){ x=Math.random()*ARENA_W; y=-20; }
+  else if(side===1){ x=ARENA_W+20; y=Math.random()*ARENA_H; }
+  else if(side===2){ x=Math.random()*ARENA_W; y=ARENA_H+20; }
+  else { x=-20; y=Math.random()*ARENA_H; }
   zombies.push({
     x,y,type, hp:cfg.hp, maxHp:cfg.hp, speed:cfg.speed*(0.85+Math.random()*0.3), dmg:cfg.dmg, r:cfg.r,
     angle:0, walk:Math.random()*10, hitFlash:0, state:'alive', deathT:0, hitCd:0
@@ -605,6 +694,10 @@ window.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
   if(e.code==='KeyR') tryReload();
   if(e.code==='KeyF') toggleLight();
+  if(e.code==='KeyE'){
+    if(state==='playing' && dist(player.x,player.y,SHOP.x,SHOP.y)<=SHOP.r) openShop();
+    else if(state==='shop') closeShop();
+  }
   if(['KeyW','KeyA','KeyS','KeyD','Space'].includes(e.code)) e.preventDefault();
 });
 window.addEventListener('keyup',(e)=> keys[e.code]=false );
@@ -628,7 +721,7 @@ wrapEl.addEventListener('pointerup', ()=> mouseDown=false);
 wrapEl.addEventListener('pointerleave', ()=> mouseDown=false);
 
 // ---------------- screen flow ----------------
-const OVERLAY_IDS=['mainMenuOverlay','menuOverlay','introOverlay','settingsOverlay','creditsOverlay','pauseOverlay','winOverlay','overOverlay'];
+const OVERLAY_IDS=['mainMenuOverlay','menuOverlay','introOverlay','settingsOverlay','creditsOverlay','pauseOverlay','shopOverlay','winOverlay','overOverlay'];
 const hudEl=document.querySelector('.hud');
 const pauseBtnEl=document.getElementById('pauseBtn');
 function setHud(visible){
@@ -702,6 +795,43 @@ function resumeGame(){
   startDrone(); startMusic();
 }
 
+// ---------------- tienda ----------------
+function openShop(){
+  if(state!=='playing') return;
+  state='shop';
+  stopDrone(); stopMusic();
+  document.getElementById('interactPrompt').classList.add('hidden');
+  refreshShopUI();
+  document.getElementById('shopOverlay').classList.remove('hidden');
+}
+function closeShop(){
+  state='playing';
+  hideAllOverlays();
+  startDrone(); startMusic();
+}
+function refreshShopUI(){
+  document.getElementById('shopCoins').textContent=player.coins;
+  document.getElementById('buyAmmoBtn').disabled = player.coins<15;
+  document.getElementById('buyHealthBtn').disabled = player.coins<20;
+  const gotShotgun = player.weapon==='shotgun';
+  document.getElementById('buyShotgunBtn').disabled = gotShotgun || player.coins<60;
+  document.getElementById('buyShotgunBtn').querySelector('span').textContent = gotShotgun ? 'Escopeta (ya la tienes)' : 'Escopeta (más daño de cerca)';
+}
+document.getElementById('buyAmmoBtn').addEventListener('click',()=>{
+  if(player.coins<15) return;
+  player.coins-=15; player.reserve+=20; sfxPickup(); refreshShopUI();
+});
+document.getElementById('buyHealthBtn').addEventListener('click',()=>{
+  if(player.coins<20) return;
+  player.coins-=20; player.hp=Math.min(player.maxHp, player.hp+40); sfxPickup(); refreshShopUI();
+});
+document.getElementById('buyShotgunBtn').addEventListener('click',()=>{
+  if(player.coins<60 || player.weapon==='shotgun') return;
+  player.coins-=60; player.weapon='shotgun'; player.magSize=WEAPONS.shotgun.magSize; player.mag=player.magSize;
+  updateWeaponHud(); sfxLevelWin(); refreshShopUI();
+});
+document.getElementById('shopCloseBtn').addEventListener('click', closeShop);
+
 document.getElementById('goPlayBtn').addEventListener('click', ()=>{ ensureAudio(); showLevelSelect(); });
 document.getElementById('goSettingsBtn').addEventListener('click', ()=>{ ensureAudio(); openSettings(); });
 document.getElementById('goCreditsBtn').addEventListener('click', ()=>{ ensureAudio(); openCredits(); });
@@ -764,6 +894,29 @@ function winLevel(){
   document.getElementById('winOverlay').classList.remove('hidden');
 }
 
+// ---------------- lluvia (efecto de pantalla, no de mundo) ----------------
+let rainOn=true; // el Nivel 1 tiene lluvia ligera; niveles futuros pueden desactivarla
+const raindrops=[];
+for(let i=0;i<70;i++){
+  raindrops.push({x:Math.random()*GW, y:Math.random()*GH, len:6+Math.random()*6, speed:4+Math.random()*2});
+}
+function updateRain(){
+  if(!rainOn) return;
+  raindrops.forEach(r=>{
+    r.x-=1.4; r.y+=r.speed;
+    if(r.y>GH){ r.y=-10; r.x=Math.random()*GW; }
+    if(r.x<-10){ r.x=GW+10; }
+  });
+}
+function drawRain(){
+  if(!rainOn) return;
+  ctx.strokeStyle='rgba(180,200,220,0.35)';
+  ctx.lineWidth=1;
+  raindrops.forEach(r=>{
+    ctx.beginPath(); ctx.moveTo(r.x,r.y); ctx.lineTo(r.x-3,r.y-r.len); ctx.stroke();
+  });
+}
+
 // ---------------- particles ----------------
 function burst(x,y,n,color,spread){
   for(let i=0;i<n;i++){
@@ -785,8 +938,13 @@ function update(){
   if(keys['KeyD']||keys['ArrowRight']) mx+=1;
   const len=Math.hypot(mx,my);
   if(len>0){ mx/=len; my/=len; player.walk+=0.22; }
-  player.x=Math.max(WALK_MIN_X, Math.min(WALK_MAX_X, player.x+mx*player.speed));
-  player.y=Math.max(player.r, Math.min(ARENA_H-player.r, player.y+my*player.speed));
+  {
+    const nx=player.x+mx*player.speed, ny=player.y+my*player.speed;
+    if(!collidesBuilding(nx, player.y, player.r)) player.x=nx;
+    if(!collidesBuilding(player.x, ny, player.r)) player.y=ny;
+    player.x=Math.max(player.r, Math.min(ARENA_W-player.r, player.x));
+    player.y=Math.max(player.r, Math.min(ARENA_H-player.r, player.y));
+  }
 
   // camera
   camX = Math.max(0, Math.min(ARENA_W-GW, player.x-GW/2));
@@ -799,10 +957,14 @@ function update(){
   // shooting
   if(player.fireCd>0) player.fireCd--;
   if(mouseDown && !player.reloading && player.fireCd<=0 && player.mag>0){
-    player.mag--; player.fireCd=9;
-    const spread=(Math.random()-0.5)*0.06;
-    const ang=player.angle+spread;
-    bullets.push({x:player.x+Math.cos(player.angle)*10, y:player.y+Math.sin(player.angle)*10, vx:Math.cos(ang)*6.5, vy:Math.sin(ang)*6.5, life:60});
+    player.mag--;
+    const wcfg=WEAPONS[player.weapon];
+    player.fireCd=wcfg.fireCd;
+    for(let p=0;p<wcfg.pellets;p++){
+      const spread=(Math.random()-0.5)*wcfg.spread;
+      const ang=player.angle+spread;
+      bullets.push({x:player.x+Math.cos(player.angle)*10, y:player.y+Math.sin(player.angle)*10, vx:Math.cos(ang)*6.5, vy:Math.sin(ang)*6.5, life:60, dmg:wcfg.dmg});
+    }
     particles.push({x:player.x+Math.cos(player.angle)*12, y:player.y+Math.sin(player.angle)*12, vx:0,vy:0, life:5, color:'#ffd98a', size:3, flash:true});
     shake=Math.max(shake,2);
     sfxShoot();
@@ -840,6 +1002,7 @@ function update(){
 
   // background music heartbeat
   if(musicOn){ musicTimer--; if(musicTimer<=0){ musicTick(); musicTimer=34; } }
+  updateRain();
 
   // objective: fuel cans + generator + final surge
   fuel.forEach(f=>{
@@ -893,9 +1056,11 @@ function update(){
     }
     const mvx=(dx/d)+sx*0.5, mvy=(dy/d)+sy*0.5;
     const mlen=Math.hypot(mvx,mvy)||1;
-    z.x+=(mvx/mlen)*z.speed; z.y+=(mvy/mlen)*z.speed;
-    z.x=Math.max(WALK_MIN_X, Math.min(WALK_MAX_X, z.x));
-    z.y=Math.max(10, Math.min(ARENA_H-10, z.y));
+    const znx=z.x+(mvx/mlen)*z.speed, zny=z.y+(mvy/mlen)*z.speed;
+    if(!collidesBuilding(znx, z.y, z.r)) z.x=znx;
+    if(!collidesBuilding(z.x, zny, z.r)) z.y=zny;
+    z.x=Math.max(z.r, Math.min(ARENA_W-z.r, z.x));
+    z.y=Math.max(z.r, Math.min(ARENA_H-z.r, z.y));
     z.walk+=z.speed*0.15;
     if(z.hitFlash>0) z.hitFlash--;
     if(z.hitCd>0) z.hitCd--;
@@ -919,13 +1084,16 @@ function update(){
     for(const z of zombies){
       if(z.state==='dead') continue;
       if(dist(b.x,b.y,z.x,z.y) < z.r+2){
-        z.hp-=10; z.hitFlash=6; b.life=0;
+        z.hp-=b.dmg; z.hitFlash=6; b.life=0;
         burst(b.x,b.y,4,'#ff5e5e',2.2);
         sfxZombieHit();
         if(z.hp<=0 && z.state!=='dead'){
           z.state='dead'; z.deathT=1;
           killCount++;
+          player.coins += z.type==='brute' ? 3 : 1;
+          updateCoinsHud();
           burst(z.x,z.y,12,'#b23a3a',3);
+          burst(z.x,z.y-4,3,'#e8c245',1.6);
           sfxZombieDie();
           if(Math.random()<0.22){
             pickups.push({x:z.x,y:z.y, type: Math.random()<0.6?'ammo':'health', r:5, bob:Math.random()*10});
@@ -963,47 +1131,74 @@ function update(){
   document.getElementById('hplabel').textContent=Math.max(0,Math.round(player.hp))+'/'+player.maxHp;
   document.getElementById('waveLabel').textContent='OLEADA '+wave;
   document.getElementById('killLabel').textContent='BAJAS '+killCount;
+  updateCoinsHud();
   document.getElementById('ammoLabel').textContent=player.mag+' / '+player.reserve;
   document.getElementById('reloadLabel').classList.toggle('hidden', !player.reloading);
+
+  // tienda: mostrar aviso de interacción si está cerca
+  document.getElementById('interactPrompt').classList.toggle('hidden', dist(player.x,player.y,SHOP.x,SHOP.y)>SHOP.r);
 }
 
 // ---------------- drawing ----------------
 function pxRect(x,y,w,h,color){ ctx.fillStyle=color; ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
 
-let groundPattern=null;
+let groundPattern=null, roadPattern=null;
 function drawGround(){
   const img=SPRITES.tile_ground;
   if(img && img.naturalWidth){
     if(!groundPattern) groundPattern=ctx.createPattern(img,'repeat');
-    ctx.save();
-    ctx.translate(-(camX%img.naturalWidth), -(camY%img.naturalHeight));
+    groundPattern.setTransform(new DOMMatrix().translate(-camX,-camY));
     ctx.fillStyle=groundPattern;
-    ctx.fillRect(0,0,GW+img.naturalWidth,GH+img.naturalHeight);
-    ctx.restore();
+    ctx.fillRect(0,0,GW,GH);
   } else {
     ctx.fillStyle='#171a16';
     ctx.fillRect(0,0,GW,GH);
+  }
+  // asfalto de la calle en cruz, encima de la tierra
+  const rimg=SPRITES.p3_road;
+  if(rimg && rimg.naturalWidth){
+    if(!roadPattern) roadPattern=ctx.createPattern(rimg,'repeat');
+    roadPattern.setTransform(new DOMMatrix().translate(-camX,-camY));
+    ctx.fillStyle=roadPattern;
+    const [vx,vy]=worldToScreen(ROAD_V.x,ROAD_V.y);
+    ctx.fillRect(vx,vy,ROAD_V.w,ROAD_V.h);
+    const [hx,hy]=worldToScreen(ROAD_H.x,ROAD_H.y);
+    ctx.fillRect(hx,hy,ROAD_H.w,ROAD_H.h);
+    // líneas centrales punteadas
+    ctx.fillStyle='rgba(230,230,235,0.55)';
+    for(let y=10; y<ARENA_H; y+=26){
+      const [dx,dy]=worldToScreen(ROAD_V.x+ROAD_V.w/2-1, y);
+      if(dy>-14&&dy<GH+14) ctx.fillRect(dx,dy,2,14);
+    }
+    for(let x=10; x<ARENA_W; x+=26){
+      const [dx,dy]=worldToScreen(x, ROAD_H.y+ROAD_H.h/2-1);
+      if(dx>-14&&dx<GW+14) ctx.fillRect(dx,dy,14,2);
+    }
   }
 }
 
 let wallPattern=null;
 function drawBuildings(){
-  const img=SPRITES.p3_wall;
-  if(img && img.naturalWidth){
-    if(!wallPattern) wallPattern=ctx.createPattern(img,'repeat');
-    ctx.save();
-    ctx.translate(0,-(camY%16));
-    ctx.fillStyle=wallPattern;
-    ctx.fillRect(0,0,BUILD_W,GH+16);
-    ctx.fillRect(ARENA_W-BUILD_W,0,BUILD_W,GH+16);
-    ctx.restore();
-  } else {
-    pxRect(0,0,BUILD_W,GH,'#6b5f58');
-    pxRect(ARENA_W-BUILD_W,0,BUILD_W,GH,'#6b5f58');
-  }
+  const wimg=SPRITES.p3_wall;
+  if(wimg && wimg.naturalWidth && !wallPattern) wallPattern=ctx.createPattern(wimg,'repeat');
+  BUILDINGS.forEach(b=>{
+    const [sx,sy]=worldToScreen(b.x,b.y);
+    if(sx>GW+20||sy>GH+20||sx+b.w<-20||sy+b.h<-20) return;
+    if(wallPattern){
+      wallPattern.setTransform(new DOMMatrix().translate(-camX,-camY));
+      ctx.fillStyle=wallPattern;
+      ctx.fillRect(sx,sy,b.w,b.h);
+    } else {
+      pxRect(sx,sy,b.w,b.h,'#6b5f58');
+    }
+    ctx.fillStyle=b.roof;
+    ctx.fillRect(sx,sy,b.w,18);
+    ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=1;
+    ctx.strokeRect(sx+0.5,sy+0.5,b.w-1,b.h-1);
+  });
   buildingDecor.forEach(d=>{
     const [sx,sy]=worldToScreen(d.x,d.y);
-    if(sy<-40||sy>GH+40) return;
+    if(sx<-30||sy<-30||sx>GW+30||sy>GH+30) return;
     const img=SPRITES[d.sprite];
     if(img && img.naturalWidth) ctx.drawImage(img, sx, sy, img.naturalWidth, img.naturalHeight);
   });
@@ -1019,11 +1214,12 @@ function drawProps(){
 }
 
 function drawLamps(){
+  const img=SPRITES.p3_streetlight;
   lamps.forEach(l=>{
     const [sx,sy]=worldToScreen(l.x,l.y);
     if(sx<-100||sy<-100||sx>GW+100||sy>GH+100) return;
-    pxRect(sx-1,sy-30,2,32,'#20242b');
-    pxRect(sx-3,sy-33,6,4,'#3a3a2a');
+    if(img && img.naturalWidth) ctx.drawImage(img, sx-img.naturalWidth/2, sy-img.naturalHeight+6, img.naturalWidth, img.naturalHeight);
+    else { pxRect(sx-1,sy-30,2,32,'#20242b'); pxRect(sx-3,sy-33,6,4,'#3a3a2a'); }
   });
 }
 
@@ -1037,6 +1233,17 @@ function drawGenerator(){
   ctx.fillStyle = genActive ? '#7cff8f' : '#ff5e5e';
   ctx.fillRect(sx-2,sy-6,4,4);
   ctx.globalAlpha=1;
+}
+
+function drawShopMarker(){
+  const [sx,sy]=worldToScreen(SHOP.x,SHOP.y);
+  if(sx<-30||sy<-30||sx>GW+30||sy>GH+30) return;
+  const bob=Math.sin(t*0.08)*2;
+  ctx.fillStyle='#3a2a08';
+  ctx.beginPath(); ctx.arc(sx,sy-12+bob,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#e8c245';
+  ctx.beginPath(); ctx.arc(sx,sy-12+bob,3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff6c9'; ctx.fillRect(sx-1,sy-13+bob,1,1);
 }
 
 function drawFuel(f){
@@ -1184,6 +1391,7 @@ function draw(){
   drawProps();
   drawLamps();
   drawGenerator();
+  drawShopMarker();
   fuel.forEach(f=>{ if(!f.taken) drawFuel(f); });
   pickups.forEach(drawPickup);
   const drawList = zombies.concat([{__player:true, y:player.y}]);
@@ -1195,6 +1403,7 @@ function draw(){
   drawParticles();
   drawFog();
   ctx.restore();
+  drawRain();
 }
 
 function drawIdle(){
@@ -1202,6 +1411,7 @@ function drawIdle(){
   // actualizando sola — la centramos a mano en la posición idle del jugador.
   camX = Math.max(0, Math.min(ARENA_W-GW, player.x-GW/2));
   camY = Math.max(0, Math.min(ARENA_H-GH, player.y-GH/2));
+  updateRain();
   ctx.save();
   drawGround();
   drawBuildings();
@@ -1211,6 +1421,7 @@ function drawIdle(){
   drawSurvivor();
   drawFog();
   ctx.restore();
+  drawRain();
 }
 
 // ---------------- loop ----------------
