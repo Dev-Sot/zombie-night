@@ -35,11 +35,41 @@ mapa vacío con props sueltos.
       personaje se ve "desarmado" pero el cono de luz + el fogonazo al
       disparar + el ícono de arma en el HUD comunican que está armado. Ver
       `CLAUDE.md` antes de reintentarlo.
+- [x] Sombra del personaje/zombies corregida (se dibujaba 7px debajo de los
+      pies, quedó de un ajuste viejo — por eso "se veía que flotaba").
+- [x] Menú principal rediseñado estilo *Heat Guardian* (panel izquierdo,
+      JUGAR/AJUSTES/CRÉDITOS sobre el fondo animado del juego), pantalla de
+      pausa (tecla ESC o botón), pantalla de ajustes (sonido + recordatorio
+      de controles) y pantalla de créditos. La selección de nivel pasó a
+      ser una sub-pantalla de "JUGAR", con botón VOLVER.
 - [ ] Mapa real con calles/edificios en vez de props sueltos sobre una
       arena vacía — el pack de TheLazyStone trae 550+ edificios sin usar
-      todavía, es el siguiente paso.
+      todavía. Decidido: **recorrido lineal por calles** (no arena abierta),
+      ver sección "Visión ampliada" abajo.
 - [ ] Música ambiental (evaluar opciones con licencia clara, no de YouTube
       directo — ver notas de assets).
+
+## Visión ampliada (pedida por el usuario, referencias: capturas de
+Eastward/mapa boscoso, menú de *Heat Guardian*, menú de *Obsidian* y HUD de
+un shooter top-down con barras) — pendiente de romper en fases concretas:
+- **Mapa lineal de Nivel 1**: el jugador avanza por una calle principal de
+  la ciudad donde empezó el apagón (casas, edificios, una tienda) en vez de
+  una arena abierta. Es un cambio de arquitectura más grande que solo
+  agregar sprites — hay que rediseñar cómo se genera/recorre el mundo.
+- **Economía + tienda**: monedas que sueltan los zombies o se encuentran en
+  el mapa; una tienda en el Nivel 1 (interactuar con **E**) para comprar
+  armas/objetos.
+- **Inventario real**: más allá del ícono de arma actual — múltiples armas,
+  cambiar entre ellas, quizás objetos consumibles.
+- **Colisión con props/edificios** (cobertura táctica, y que los edificios
+  bloqueen el paso — necesario para que el mapa lineal funcione).
+- **Más zombies / dificultad**: oleadas más grandes, quizás más tipos.
+- **Pensado para multijugador a futuro** (chat, etc. — Fase 4) — mientras
+  tanto, priorizar que el modo un jugador ya sea entretenido por sí solo.
+
+Esto es demasiado para una sola fase — se va a partir en sub-fases cuando
+se retome (siguiente: mapa lineal, ya que la tienda/inventario dependen de
+que exista un lugar en el mapa para ponerlos).
 
 ### Decisión de assets (para no perder coherencia visual mezclando packs)
 El usuario compartió varios packs de itch.io para evaluar. Veredicto:

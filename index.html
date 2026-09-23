@@ -51,10 +51,13 @@
   .ammo .weaponSlot img{ width:20px; height:auto; image-rendering:pixelated; }
   .ammo .reload{ color:var(--danger); font-size:8px; margin-top:2px; animation:blink .5s steps(2) infinite; }
   .hidden{ display:none !important; }
-  #muteBtn{
-    position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6; pointer-events:auto;
-    background:rgba(0,0,0,.45); border:2px solid #000; color:var(--ink);
-    font-family:inherit; font-size:9px; letter-spacing:1px; width:36px; height:22px; border-radius:5px; cursor:pointer;
+  .topControls{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6;
+    display:flex; gap:6px;
+  }
+  .topControls button{
+    pointer-events:auto; background:rgba(0,0,0,.45); border:2px solid #000; color:var(--ink);
+    font-family:inherit; font-size:9px; letter-spacing:1px; height:22px; padding:0 8px; border-radius:5px; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
   .wavebanner{
@@ -79,6 +82,20 @@
     background:linear-gradient(180deg, rgba(5,5,10,.6), rgba(5,5,10,.92));
   }
   .overlay.hidden{ display:none; }
+  .overlay.leftpanel{
+    align-items:flex-start; justify-content:center; text-align:left; gap:22px;
+    background:linear-gradient(90deg, rgba(5,5,10,.96) 38%, rgba(5,5,10,.35) 75%, rgba(5,5,10,.1));
+    padding:0 0 0 30px;
+  }
+  .mainmenu-list{ display:flex; flex-direction:column; gap:16px; }
+  .mainmenu-list button{
+    background:none; border:none; color:var(--muted); font-family:inherit; font-size:12px;
+    letter-spacing:1px; text-align:left; padding:4px 0; cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+  }
+  .mainmenu-list button .arrow{ color:var(--danger); opacity:0; transition:opacity .15s; }
+  .mainmenu-list button:hover{ color:var(--ink); }
+  .mainmenu-list button:hover .arrow{ opacity:1; }
   .title{ font-size:clamp(15px,4.4vw,26px); color:var(--danger); text-shadow:3px 3px 0 #4a0000, 6px 6px 0 #000; letter-spacing:1px; }
   .sub{ font-size:8.5px; color:var(--muted); line-height:2; max-width:360px; }
   .sub b{ color:var(--accent); }
@@ -103,7 +120,10 @@
 <body>
 <div id="wrap">
   <canvas id="game"></canvas>
-  <button id="muteBtn" title="Silenciar">SON</button>
+  <div class="topControls">
+    <button id="muteBtn" title="Silenciar">SON</button>
+    <button id="pauseBtn" title="Pausa">PAUSA</button>
+  </div>
 
   <div class="hud">
     <div class="topbar">
@@ -128,9 +148,20 @@
     </div>
   </div>
 
-  <div class="overlay" id="menuOverlay">
-    <div class="title" style="font-size:18px;">NOCHE SIN LUNA</div>
-    <div class="sub">Elige un nivel. La luz es tu única aliada.</div>
+  <div class="overlay leftpanel" id="mainMenuOverlay">
+    <div>
+      <div class="title" style="font-size:22px;">NOCHE SIN LUNA</div>
+      <div class="mainmenu-list">
+        <button id="goPlayBtn"><span class="arrow">▶</span>JUGAR</button>
+        <button id="goSettingsBtn"><span class="arrow">▶</span>AJUSTES</button>
+        <button id="goCreditsBtn"><span class="arrow">▶</span>CRÉDITOS</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="menuOverlay">
+    <div class="title" style="font-size:18px;">ELEGIR NIVEL</div>
+    <div class="sub">La luz es tu única aliada.</div>
     <div class="levelgrid">
       <button class="btn levelbtn" id="lvl1Btn">
         <span class="lvlnum">NIVEL 1</span>
@@ -148,6 +179,38 @@
         <span class="lvlnum">NIVEL 4</span>
         <span class="lvlname">PRÓXIMAMENTE</span>
       </button>
+    </div>
+    <button class="btn alt" id="levelBackBtn">VOLVER</button>
+  </div>
+
+  <div class="overlay hidden" id="settingsOverlay">
+    <div class="title" style="font-size:16px;">AJUSTES</div>
+    <div class="sub" style="text-align:left;">
+      <b>WASD</b> moverte &nbsp; <b>MOUSE</b> apuntar &nbsp; <b>CLIC</b> disparar<br>
+      <b>R</b> recargar &nbsp; <b>F</b> linterna &nbsp; <b>ESC</b> pausa
+    </div>
+    <button class="btn" id="settingsSoundBtn">SONIDO: ACTIVADO</button>
+    <button class="btn alt" id="settingsBackBtn">VOLVER</button>
+  </div>
+
+  <div class="overlay hidden" id="creditsOverlay">
+    <div class="title" style="font-size:16px;">CRÉDITOS</div>
+    <div class="sub" style="text-align:left;">
+      Jugador y zombies: <b>Post-Apocalypse Pixel Art Asset Pack</b>
+      (TheLazyStone, itch.io).<br><br>
+      Mapa, props y objetos: <b>Zombie Apocalypse Tileset</b>
+      (Ittai Manero, itch.io).<br><br>
+      Un proyecto de Dev-Sot.
+    </div>
+    <button class="btn alt" id="creditsBackBtn">VOLVER</button>
+  </div>
+
+  <div class="overlay hidden" id="pauseOverlay">
+    <div class="title" style="font-size:18px;">PAUSA</div>
+    <div class="btnrow" style="flex-direction:column;">
+      <button class="btn" id="resumeBtn">REANUDAR</button>
+      <button class="btn alt" id="pauseSettingsBtn">AJUSTES</button>
+      <button class="btn alt" id="pauseMenuBtn">MENÚ PRINCIPAL</button>
     </div>
   </div>
 
@@ -366,10 +429,15 @@ function musicTick(){
 }
 
 const muteBtn=document.getElementById('muteBtn');
-muteBtn.addEventListener('click',()=>{
-  muted=!muted; muteBtn.textContent = muted?'MUDO':'SON';
+const settingsSoundBtn=document.getElementById('settingsSoundBtn');
+function toggleMute(){
+  muted=!muted;
+  muteBtn.textContent = muted?'MUDO':'SON';
+  settingsSoundBtn.textContent = 'SONIDO: '+(muted?'DESACTIVADO':'ACTIVADO');
   if(muted) stopDrone(); else if(state==='playing') startDrone();
-});
+}
+muteBtn.addEventListener('click', toggleMute);
+settingsSoundBtn.addEventListener('click', toggleMute);
 
 // ---------------- storage ----------------
 let bestWave=1;
@@ -404,7 +472,8 @@ const player={
 };
 
 // ---------------- state ----------------
-let state='menu'; // menu | intro | playing | win | over
+let state='mainmenu'; // mainmenu | levelselect | intro | playing | paused | settings | credits | win | over
+let returnState='mainmenu'; // where settings/back should return to
 let t=0;
 let zombies=[], bullets=[], particles=[], pickups=[];
 let wave=0, killCount=0, spawnQueue=0, spawnTimer=0, waveClearT=0, waveActive=false;
@@ -530,8 +599,15 @@ wrapEl.addEventListener('pointerup', ()=> mouseDown=false);
 wrapEl.addEventListener('pointerleave', ()=> mouseDown=false);
 
 // ---------------- screen flow ----------------
+const OVERLAY_IDS=['mainMenuOverlay','menuOverlay','introOverlay','settingsOverlay','creditsOverlay','pauseOverlay','winOverlay','overOverlay'];
+const hudEl=document.querySelector('.hud');
+const pauseBtnEl=document.getElementById('pauseBtn');
+function setHud(visible){
+  hudEl.classList.toggle('hidden', !visible);
+  pauseBtnEl.classList.toggle('hidden', !visible);
+}
 function hideAllOverlays(){
-  ['menuOverlay','introOverlay','winOverlay','overOverlay'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  OVERLAY_IDS.forEach(id=>document.getElementById(id).classList.add('hidden'));
 }
 function updateLevelBadges(){
   let done=false;
@@ -539,34 +615,88 @@ function updateLevelBadges(){
   const nameEl=document.querySelector('#lvl1Btn .lvlname');
   if(nameEl) nameEl.textContent = 'EL APAGÓN' + (done?' ✓':'');
 }
-function showMenu(){
-  state='menu';
+function showMainMenu(){
+  state='mainmenu';
   stopDrone(); stopMusic();
   hideAllOverlays();
+  setHud(false);
+  document.getElementById('mainMenuOverlay').classList.remove('hidden');
+}
+function showLevelSelect(){
+  state='levelselect';
+  hideAllOverlays();
+  setHud(false);
   document.getElementById('menuOverlay').classList.remove('hidden');
   updateLevelBadges();
 }
 function showIntro(){
   state='intro';
   hideAllOverlays();
+  setHud(false);
   document.getElementById('introOverlay').classList.remove('hidden');
 }
 function beginPlaying(){
   hideAllOverlays();
+  setHud(true);
   resetGame();
   state='playing';
   startDrone();
   startMusic();
 }
+function openSettings(){
+  returnState = state==='paused' ? 'paused' : 'mainmenu';
+  state='settings';
+  hideAllOverlays();
+  if(returnState!=='paused') setHud(false);
+  document.getElementById('settingsOverlay').classList.remove('hidden');
+}
+function closeSettings(){
+  hideAllOverlays();
+  if(returnState==='paused'){ state='paused'; document.getElementById('pauseOverlay').classList.remove('hidden'); }
+  else { showMainMenu(); }
+}
+function openCredits(){
+  state='credits';
+  hideAllOverlays();
+  setHud(false);
+  document.getElementById('creditsOverlay').classList.remove('hidden');
+}
+function pauseGame(){
+  if(state!=='playing') return;
+  state='paused';
+  stopDrone(); stopMusic();
+  document.getElementById('pauseOverlay').classList.remove('hidden');
+}
+function resumeGame(){
+  state='playing';
+  hideAllOverlays();
+  startDrone(); startMusic();
+}
 
+document.getElementById('goPlayBtn').addEventListener('click', ()=>{ ensureAudio(); showLevelSelect(); });
+document.getElementById('goSettingsBtn').addEventListener('click', ()=>{ ensureAudio(); openSettings(); });
+document.getElementById('goCreditsBtn').addEventListener('click', ()=>{ ensureAudio(); openCredits(); });
+document.getElementById('levelBackBtn').addEventListener('click', showMainMenu);
+document.getElementById('settingsBackBtn').addEventListener('click', closeSettings);
+document.getElementById('creditsBackBtn').addEventListener('click', showMainMenu);
 document.getElementById('lvl1Btn').addEventListener('click', ()=>{ ensureAudio(); showIntro(); });
 document.getElementById('beginBtn').addEventListener('click', ()=>{ ensureAudio(); beginPlaying(); });
 document.getElementById('retryBtn').addEventListener('click', ()=>{ ensureAudio(); beginPlaying(); });
 document.getElementById('winRetryBtn').addEventListener('click', ()=>{ ensureAudio(); beginPlaying(); });
-document.getElementById('overMenuBtn').addEventListener('click', showMenu);
-document.getElementById('winMenuBtn').addEventListener('click', showMenu);
+document.getElementById('overMenuBtn').addEventListener('click', showMainMenu);
+document.getElementById('winMenuBtn').addEventListener('click', showMainMenu);
+document.getElementById('pauseBtn').addEventListener('click', ()=>{
+  if(state==='playing') pauseGame(); else if(state==='paused') resumeGame();
+});
+document.getElementById('resumeBtn').addEventListener('click', resumeGame);
+document.getElementById('pauseSettingsBtn').addEventListener('click', openSettings);
+document.getElementById('pauseMenuBtn').addEventListener('click', showMainMenu);
 window.addEventListener('keydown',(e)=>{
   if(e.code==='Enter' && state==='over') beginPlaying();
+  if(e.code==='Escape'){
+    if(state==='playing') pauseGame();
+    else if(state==='paused') resumeGame();
+  }
 });
 
 function tryReload(){
@@ -1043,14 +1173,16 @@ function drawIdle(){
 }
 
 // ---------------- loop ----------------
+const IDLE_STATES=['mainmenu','levelselect','intro','settings','credits'];
 function loop(){
   if(state==='playing'){ update(); draw(); }
-  else if(state==='menu' || state==='intro'){ drawIdle(); }
-  else { draw(); }
+  else if(IDLE_STATES.includes(state)){ drawIdle(); }
+  else { draw(); } // paused | win | over — freeze on the last real frame
   requestAnimationFrame(loop);
 }
 loadAssets(()=>{
   updateLevelBadges();
+  setHud(false);
   requestAnimationFrame(loop);
 });
 
