@@ -1,7 +1,7 @@
 import { S, bus } from '../core/state.js';
 import { save, persist } from '../core/save.js';
 import { sfx } from '../core/audio.js';
-import { LEVELS, LEVEL4, SHOP_ITEMS } from '../game/levels.js';
+import { LEVELS, WORLDS, SHOP_ITEMS } from '../game/levels.js';
 import { WEAPONS, ORDER } from '../game/weapons.js';
 import { objectiveText } from '../game/objectives.js';
 import { room, cleanCode, MAX_PLAYERS } from '../net/net.js';
@@ -15,6 +15,7 @@ let H = {};
 let backTo = 'mainMenu';
 let thumbs = {};
 let levelMode = 'story';
+let levelWorld = 1;
 export function setThumbs(t) { thumbs = t; }
 
 // Press Start 2P no trae mayúsculas acentuadas: se reemplazan por las simples
@@ -123,7 +124,7 @@ export function initUI(handlers) {
   document.querySelectorAll('.menu-list button').forEach((b) => b.addEventListener('click', () => {
     const act = b.dataset.act;
     if (act === 'continue') H.onPlayLevel(save.last || 1);
-    if (act === 'levels') { levelMode = 'story'; renderLevels(); show('levelMenu'); }
+    if (act === 'levels') { levelMode = 'story'; levelWorld = (save.last || 1) > 3 ? 2 : 1; renderLevels(); show('levelMenu'); }
     if (act === 'survival') { levelMode = 'survival'; renderLevels(); show('levelMenu'); }
     if (act === 'settings') { backTo = 'mainMenu'; show('settingsMenu'); }
     if (act === 'howto') show('howtoMenu');
@@ -194,9 +195,11 @@ function renderToggle(box, options, current, onPick, enabled = true) {
 const MODES = [['story', 'HISTORIA'], ['survival', 'SUPERVIVENCIA']];
 
 function renderSurvivalCards(wrap) {
-  for (const L of LEVELS) {
+  for (const L of LEVELS.filter((q) => q.world === levelWorld)) {
+    // los mapas del mundo 2 se habilitan al llegar a esa noche en la historia
+    const locked = L.world > 1 && L.id > save.unlocked;
     const c = document.createElement('button');
-    c.className = 'card';
+    c.className = `card${locked ? ' locked' : ''}`;
     c.style.setProperty('--c', thumbs[L.id] ? `url(${thumbs[L.id]}) center/cover` : `linear-gradient(160deg, ${L.color}, #07070a)`);
     const rn = save.survival[`${L.id}_normal`], rp = save.survival[`${L.id}_pesadilla`];
     c.innerHTML = `
@@ -205,9 +208,9 @@ function renderSurvivalCards(wrap) {
       <div class="num">SUPERVIVENCIA</div>
       <div class="name">${pxHtml(L.name.toUpperCase())}</div>
       <div class="desc">${SURVIVAL_DESC[L.id]}</div>
-      <div class="lockmsg go">RECORD: OLEADA ${save.survival[`${L.id}_${save.diff}`] || 0}</div>`;
+      <div class="lockmsg${locked ? '' : ' go'}">${locked ? 'LLEGA A ESTA NOCHE EN LA HISTORIA' : `RECORD: OLEADA ${save.survival[`${L.id}_${save.diff}`] || 0}`}</div>`;
     c.addEventListener('mouseenter', () => sfx('uiHover'));
-    c.addEventListener('click', () => { sfx('uiClick'); H.onPlaySurvival(L.id); });
+    if (!locked) c.addEventListener('click', () => { sfx('uiClick'); H.onPlaySurvival(L.id); });
     wrap.appendChild(c);
   }
 }
@@ -216,17 +219,18 @@ function renderLevels() {
   const wrap = $('levelCards');
   renderToggle($('modeToggle'), MODES, levelMode, (id) => { levelMode = id; renderLevels(); });
   $('levelTitle').textContent = levelMode === 'survival' ? 'SUPERVIVENCIA' : 'ELEGIR NOCHE';
-  wrap.classList.toggle('three', levelMode === 'survival');
+  renderToggle($('worldToggle'), WORLDS, levelWorld, (id) => { levelWorld = id; renderLevels(); });
+  wrap.classList.add('three');
   renderDiffToggle($('diffToggle'), save.diff, (id) => { save.diff = id; persist(); renderLevels(); });
   $('diffDesc').textContent = DIFFS[save.diff].desc;
   $('levelMenu').classList.toggle('nightmare', save.diff === 'pesadilla');
   wrap.innerHTML = '';
   if (levelMode === 'survival') { renderSurvivalCards(wrap); return; }
-  [...LEVELS, LEVEL4].forEach((L) => {
-    const locked = L.id !== 4 && L.id > save.unlocked;
+  LEVELS.filter((q) => q.world === levelWorld).forEach((L) => {
+    const locked = L.id > save.unlocked;
     const c = document.createElement('button');
     c.className = `card${locked ? ' locked' : ''}`;
-    const th = thumbs[L.id] || (L.id === 4 && thumbs[2]);
+    const th = thumbs[L.id];
     c.style.setProperty('--c', th ? `url(${th}) center/cover` : `linear-gradient(160deg, ${L.color}, #07070a)`);
     c.innerHTML = `
       <div class="tag">${L.tag}</div>
@@ -234,10 +238,9 @@ function renderLevels() {
       <div class="num">NOCHE ${L.id}</div>
       <div class="name">${pxHtml(L.name.toUpperCase())}</div>
       <div class="desc">${L.desc}</div>
-      ${locked ? '<div class="lockmsg">SUPERA LA NOCHE ANTERIOR</div>' : ''}
-      ${L.id === 4 ? '<div class="lockmsg go">JUGAR ONLINE</div>' : ''}`;
+      ${locked ? '<div class="lockmsg">SUPERA LA NOCHE ANTERIOR</div>' : ''}`;
     c.addEventListener('mouseenter', () => sfx('uiHover'));
-    if (!locked) c.addEventListener('click', () => { sfx('uiClick'); if (L.id === 4) showCoop(); else H.onPlayLevel(L.id); });
+    if (!locked) c.addEventListener('click', () => { sfx('uiClick'); H.onPlayLevel(L.id); });
     wrap.appendChild(c);
   });
 }
@@ -393,7 +396,7 @@ export function showDeath(stats, role = null, title = null) {
   $('btnRetry').classList.toggle('hidden', role === 'client');
   $('deathNote').classList.toggle('hidden', role !== 'client');
   $('btnDeathMenu').textContent = endLabel(role);
-  document.querySelector('#deathMenu .screen-title').textContent = title || (role ? 'CAYO TODO EL EQUIPO' : 'TE ATRAPARON');
+  document.querySelector('#deathMenu .screen-title').textContent = px(title || (role ? 'CAYO TODO EL EQUIPO' : 'TE ATRAPARON'));
   show('deathMenu');
 }
 export function pauseOptions(role) {

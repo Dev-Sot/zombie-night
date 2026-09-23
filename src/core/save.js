@@ -29,6 +29,6 @@ const RANKS = ['C', 'B', 'A', 'S'];
 export function recordWin(id, rank, key = String(id)) {
   save.unlocked = Math.max(save.unlocked, id + 1);
   if (!save.best[key] || RANKS.indexOf(rank) > RANKS.indexOf(save.best[key])) save.best[key] = rank;
-  save.last = Math.min(3, id + 1);
+  save.last = Math.min(6, id + 1);
   persist();
 }

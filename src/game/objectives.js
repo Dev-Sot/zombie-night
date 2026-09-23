@@ -6,6 +6,9 @@ import { addPickup } from './pickups.js';
 import { spawnZombie } from './zombies.js';
 import { burst, light, shake } from './fx.js';
 import { survivalText, survivalTarget } from './survival.js';
+import { npc } from './npc.js';
+import { openDoor, doorLocked } from './world.js';
+import { frame } from '../core/render.js';
 
 // Cada nivel define una lista de pasos; se completan en orden.
 //   collect  — juntar ítems en puntos fijos
@@ -14,6 +17,8 @@ import { survivalText, survivalTarget } from './survival.js';
 //   hold     — mantenerse dentro de un radio N segundos (la barra se congela si salís)
 //   survive  — aguantar N segundos
 //   boss     — matar al jefe
+//   rescue   — llegar hasta un sobreviviente (desde ahí te sigue)
+//   escort   — llevar al sobreviviente hasta un punto
 export function startObjectives(L) {
   S.objective = { steps: L.objective, i: -1, step: null, count: 0, total: 0, timer: 0, markers: L.markers.map((m) => ({ ...m, state: 0 })) };
   nextStep();
@@ -34,7 +39,7 @@ function nextStep() {
   if (st.type === 'interact') { O.total = st.spots.length; O.done = st.spots.map(() => false); }
   if (st.type === 'hold' || st.type === 'survive') O.total = st.seconds * 60;
   if (st.type === 'boss') {
-    const b = spawnZombie('boss', st.spawn.x, st.spawn.y);
+    const b = spawnZombie(st.zombie || 'boss', st.spawn.x, st.spawn.y);
     b.alert = true;
     S.boss = b;
   }
@@ -53,7 +58,19 @@ function runEvents(ev) {
   if (ev.subtitle) bus.emit('subtitle', ev.subtitle);
   if (ev.heli) { S.heli = { x: ev.heli.from.x, y: ev.heli.from.y, tx: ev.heli.to.x, ty: ev.heli.to.y, t: 0 }; ambient('heli', true); }
   if (ev.shake) shake(ev.shake);
-  if (ev.lights) { S.world.lamps.forEach((l) => { l.lit = true; }); S.timeScale = 0.4; bus.emit('lightsOn'); }
+  if (ev.lights) {
+    // las luces se prenden en cadena, desde donde está el equipo hacia afuera
+    const o = S.players.find((p) => !p.dead) || { x: 0, y: 0 };
+    S.world.lamps.forEach((l) => { if (!l.lit) l.litAt = S.t + Math.round(dist(l.x, l.y, o.x, o.y) * 0.12); });
+    S.timeScale = 0.4; bus.emit('lightsOn');
+  }
+  if (ev.flag) (S.flags ||= new Set()).add(ev.flag);
+  if (ev.power) {
+    (S.flags ||= new Set()).add('power');
+    for (const D of S.world.doors) if (D.autoPower && !doorLocked(D).length) openDoor(S.world, D);
+  }
+  if (ev.follow) { const n = npc(ev.follow); if (n) n.follow = true; }
+  if (ev.exitCar) { const m = marker(ev.exitCar); if (m) { m.state = 1; S.exitCar = m; } }
 }
 
 function finishStep() {
@@ -64,6 +81,7 @@ function finishStep() {
 }
 
 bus.on('collect', (p) => {
+  (S.flags ||= new Set()).add(p.item);
   const O = S.objective;
   if (!O?.step || O.step.type !== 'collect' || p.item !== O.step.item) return;
   O.count++;
@@ -101,12 +119,20 @@ export function updateObjectives() {
     if (inside) O.count++;
     if (S.t % 30 === 0) bus.emit('objective', st);
     if (O.count >= O.total) finishStep();
+  } else if (st.type === 'rescue') {
+    const n = npc(st.npc);
+    if (n && alive.some((p) => dist(p.x, p.y, n.x, n.y) < (st.r || 24))) { n.follow = true; finishStep(); }
+  } else if (st.type === 'escort') {
+    const n = npc(st.npc);
+    if (n && !n.dead && dist(n.x, n.y, st.x, st.y) < st.r) finishStep();
   } else if (st.type === 'survive') {
     O.count++;
     if (S.t % 30 === 0) bus.emit('objective', st);
     if (st.at) for (const [sec, ev] of Object.entries(st.at)) if (O.count === Number(sec) * 60) runEvents(ev);
     if (O.count >= O.total) finishStep();
   }
+  // vehículo de la escapa final alejándose
+  if (S.exitCar?.leaving) { const m = S.exitCar; m.vx = Math.min(3.2, (m.vx || 0) + 0.035); m.x += m.vx; }
   // helicóptero de rescate acercándose
   if (S.heli) {
     const h = S.heli;
@@ -142,7 +168,8 @@ export function objectiveTarget(from) {
     st.spots.forEach((s, k) => { if (O.done[k]) return; const d = dist(s.x, s.y, from.x, from.y); if (d < bd) { bd = d; best = s; } });
     return best;
   }
-  if (st.type === 'reach' || st.type === 'hold') return st;
+  if (st.type === 'reach' || st.type === 'hold' || st.type === 'escort') return st;
+  if (st.type === 'rescue') return npc(st.npc) || null;
   if (st.type === 'boss' && S.boss && S.boss.state !== 'dead') return S.boss;
   return null;
 }
@@ -198,6 +225,38 @@ function drawMarker(m) {
       ctx.strokeStyle = `rgba(124,255,143,${0.5 - (S.t % 60) / 120})`;
       ctx.beginPath(); ctx.arc(X, Y - 62, (S.t % 60) / 2, 0, Math.PI * 2); ctx.stroke();
     }
+  } else if (m.type === 'wreck') {
+    // helicóptero caído de costado: cuerpo, cabina rota, cola partida y aspa en el piso
+    ctx.fillStyle = 'rgba(10,8,8,0.55)'; ctx.beginPath(); ctx.ellipse(X + 4, Y + 1, 44, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 26, Y - 22, 40, 22);
+    ctx.fillStyle = '#39413a'; ctx.fillRect(X - 25, Y - 21, 38, 20);
+    ctx.fillStyle = '#4a544a'; ctx.fillRect(X - 25, Y - 21, 38, 4);
+    ctx.fillStyle = '#243039'; ctx.fillRect(X - 25, Y - 16, 11, 11);
+    ctx.fillStyle = '#6a8fa8'; ctx.fillRect(X - 23, Y - 15, 3, 4); ctx.fillRect(X - 19, Y - 12, 2, 5);
+    ctx.fillStyle = '#e8483f'; ctx.fillRect(X - 6, Y - 12, 8, 2);
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X + 13, Y - 17, 30, 7);
+    ctx.fillStyle = '#39413a'; ctx.fillRect(X + 13, Y - 16, 27, 5);
+    ctx.fillStyle = '#1a1d1f'; ctx.fillRect(X + 40, Y - 26, 3, 16); ctx.fillRect(X + 36, Y - 20, 11, 2);
+    ctx.fillStyle = '#23262a'; ctx.fillRect(X - 48, Y + 4, 46, 2); ctx.fillRect(X - 50, Y + 3, 4, 4);
+    ctx.fillStyle = '#1a1d1f'; ctx.fillRect(X - 22, Y - 1, 32, 2);
+    for (const [fx, fy] of [[-12, -18], [4, -20], [16, -14]]) {
+      if (Math.random() < 0.55) burst(m.x + fx + rand(-4, 4), m.y + fy, 1, { color: '#ffb347', type: 'fire', lifeMul: 0.8, grav: -0.06, lift: 1.4, speed: 0.4, size: 2 });
+    }
+    if (S.t % 4 === 0) burst(m.x + rand(-12, 16), m.y - 24, 1, { color: '#2a2624', type: 'smoke', lifeMul: 3.6, grav: -0.06, lift: 1.6, speed: 0.35, size: 3 });
+  } else if (m.type === 'breaker') {
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 7, Y - 22, 14, 18);
+    ctx.fillStyle = '#5e5d6b'; ctx.fillRect(X - 6, Y - 21, 12, 16);
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 1, Y - 18, 3, 9);
+    ctx.fillStyle = '#a3a3a8'; ctx.fillRect(X - 2, m.state ? Y - 18 : Y - 12, 5, 3);
+    ctx.fillStyle = m.state ? '#7cff8f' : (blink ? '#ff4a3a' : '#6a1c16'); ctx.fillRect(X + 3, Y - 20, 2, 2);
+    pixelText(ctx, 'ALTA TENSION', X - textWidth('ALTA TENSION') / 2, Y - 30, '#ffcf6b');
+  } else if (m.type === 'ambulance') {
+    frame('env/ambulance', 0, m.x, m.y, {});
+    if (m.state) {
+      const on = Math.floor(S.t / 8) % 2;
+      ctx.fillStyle = on ? '#ff4040' : '#401010'; ctx.fillRect(X - 5, Y - 26, 3, 2);
+      ctx.fillStyle = on ? '#202848' : '#5078ff'; ctx.fillRect(X + 3, Y - 26, 3, 2);
+    }
   } else if (m.type === 'flare') {
     ctx.fillStyle = '#3a3a3a'; ctx.fillRect(X - 1, Y - 6, 3, 6);
     if (m.state) {
@@ -231,6 +290,9 @@ export function markerLights() {
     if (m.type === 'antenna') out.push({ x: m.x, y: m.y - 30, r: m.state ? 90 : 20, a: 0.7, color: m.state ? 'rgba(124,255,143,' : 'rgba(255,60,60,' });
     if (m.type === 'flare' && m.state) out.push({ x: m.x, y: m.y - 8, r: 95 + Math.sin(S.t * 0.4) * 6, a: 0.95, color: 'rgba(255,70,50,' });
     if (m.type === 'helipad' && m.state) out.push({ x: m.x, y: m.y, r: 80, a: 0.6, color: 'rgba(255,207,107,' });
+    if (m.type === 'wreck') out.push({ x: m.x, y: m.y - 10, r: 105 + Math.sin(S.t * 0.3) * 8 + rand(-4, 4), a: 0.9, color: 'rgba(255,120,40,' });
+    if (m.type === 'breaker') out.push({ x: m.x, y: m.y - 14, r: m.state ? 40 : 22, a: 0.6, color: m.state ? 'rgba(124,255,143,' : 'rgba(255,60,60,' });
+    if (m.type === 'ambulance') out.push({ x: m.x, y: m.y - 14, r: m.state ? 70 : 34, a: 0.8, color: m.state && Math.floor(S.t / 8) % 2 ? 'rgba(80,120,255,' : 'rgba(255,60,60,' });
   }
   if (S.heli) out.push({ x: S.heli.x, y: S.heli.y + 10, r: 70 + rand(-3, 3), a: 0.9, color: 'rgba(230,240,255,' });
   return out;

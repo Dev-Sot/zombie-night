@@ -5,8 +5,9 @@ import { pixelText, textWidth } from '../core/pixelfont.js';
 import { localControl, anyPressed, endFrame, pollGamepad, virt } from '../core/input.js';
 import { sfx, sfxHook, playMusic, ambient, stopAllAmbient, setIntensity, setVolumes, audioReady } from '../core/audio.js';
 import { save, recordWin, recordSurvival } from '../core/save.js';
-import { buildWorld, drawGround, worldDrawables, moveEntity } from './world.js';
-import { settings as fxSettings, updateFx, drawDecals, drawParticles, drawFloaters, setWeather, updateWeather, drawWeather, drawLighting, drawCinema, light } from './fx.js';
+import { buildWorld, drawGround, worldDrawables, moveEntity, openDoor, doorLocked, searchContainer, drawRoofs } from './world.js';
+import { spawnNpcs, updateNpcs, npcDrawables, npcLights } from './npc.js';
+import { settings as fxSettings, updateFx, drawDecals, drawParticles, drawFloaters, setWeather, updateWeather, drawWeather, drawLighting, drawCinema, light, scorch } from './fx.js';
 import { updateBullets, drawBullets, WEAPONS, ORDER } from './weapons.js';
 import { spawnZombie, updateZombies, zombieDrawables, pickSpawnPoint, drawGas } from './zombies.js';
 import { updatePickups, drawPickups, pickupLights, addPickup } from './pickups.js';
@@ -23,7 +24,7 @@ import * as ui from '../ui/ui.js';
 // Modos: menu (escena de fondo) · intro · play · shop · paused · outro · dead · results
 const G = { mode: 'menu', bars: 0, introT: 0, introDur: 0, introFrom: null, playT: 0, deathShown: false, remote: new Map() };
 const WV = { queue: 0, alertQueue: 0, timer: 0, next: 0 };
-const PAR = { 1: 300, 2: 330, 3: 400 };
+const PAR = { 1: 300, 2: 330, 3: 400, 4: 360, 5: 420, 6: 400 };
 const OVERLAY_MODES = new Set(['paused', 'shop']);
 const me = () => S.players[net.me];
 const mp = () => !!net.role;
@@ -33,8 +34,9 @@ function resetState() {
     zombies: [], bullets: [], projectiles: [], pickups: [], particles: [], decals: [], lights: [], floaters: [],
     players: [], t: 0, timeScale: 1, hitstop: 0, shake: 0, wave: 0, kills: 0, shots: 0, hits: 0,
     objective: null, boss: null, heli: null, surge: 0, spawnBoost: 1, over: false, menuMode: false, pings: [],
-    surv: null, zScale: 1, zSpeed: 1, gas: [],
+    surv: null, zScale: 1, zSpeed: 1, gas: [], npcs: [], flags: new Set(), exitCar: null,
   });
+  G.failNpc = null;
   S.cam.cine = null;
   Object.assign(WV, { queue: 0, alertQueue: 0, timer: 0, next: 60 * 12 });
   G.playT = 0; G.deathShown = false;
@@ -81,7 +83,7 @@ export function menuAudio() {
 }
 
 // Miniaturas reales de cada nivel para las tarjetas del menú
-const THUMB_CAM = { 1: [560, 330], 2: [210, 170], 3: [560, 230] };
+const THUMB_CAM = { 1: [560, 330], 2: [210, 170], 3: [560, 230], 4: [420, 520], 5: [600, 330], 6: [700, 420] };
 export function levelThumbs() {
   const out = {};
   for (const L of LEVELS) {
@@ -111,7 +113,9 @@ export function startLevel(id, opts = {}) {
     S.diff = DIFFS[opts.diff || save.diff] || DIFFS.normal;
     S.level = L;
     S.world = buildWorld(L);
-    S.world.lamps.forEach((l) => { l.lit = !L.lampsOff; });
+    S.world.lamps.forEach((l) => { l.lit = !L.lampsOff || l.emergency; });
+    spawnNpcs(L);
+    for (const m of L.markers || []) if (m.type === 'wreck') for (let i = 0; i < 9; i++) scorch(m.x + rand(-60, 60), m.y + rand(-24, 30));
     G.remote.clear();
     if (opts.roster) {
       net.role = room.role;
@@ -199,14 +203,26 @@ bus.on('levelComplete', () => {
   for (const p of S.players) p.invuln = 1e9;
   if (!mp()) S.timeScale = 0.5;
   sfx('win');
-  if (L.id === 3 && S.heli) {
-    S.players.forEach((p) => { if (!p.dead) p.boarded = true; });
-    S.heli.leaving = true; S.heli.tx = S.heli.x + 700; S.heli.ty = S.heli.y - 500;
-  }
+  finale();
   WV.queue = 0; S.surge = 0;
   if (net.role === 'host') broadcast({ t: 'outro' });
   setTimeout(beginOutro, 900);
 });
+
+// escapa final: todos suben y el vehículo se va
+function finale() {
+  const L = S.level;
+  if (L.id === 3 && S.heli) {
+    S.players.forEach((p) => { if (!p.dead) p.boarded = true; });
+    S.heli.leaving = true; S.heli.tx = S.heli.x + 700; S.heli.ty = S.heli.y - 500;
+  }
+  if (L.finale === 'car' && S.exitCar) {
+    S.players.forEach((p) => { if (!p.dead) p.boarded = true; });
+    (S.npcs || []).forEach((n) => { if (!n.dead) n.boarded = true; });
+    S.exitCar.leaving = true;
+    sfx('generator', 0.7);
+  }
+}
 
 function stats() {
   const secs = Math.floor(G.playT / 60);
@@ -249,7 +265,7 @@ function showDeath() {
   canvas.classList.add('dead');
   ui.setHud(false);
   ui.prompt(null);
-  let rows = stats().rows, title = null;
+  let rows = stats().rows, title = G.failNpc ? `${G.failNpc.name.toUpperCase()} NO SOBREVIVIO` : null;
   if (S.level.survival) {
     const key = survivalKey();
     const isNew = recordSurvival(key, S.surv.wave);
@@ -454,6 +470,7 @@ function clientMsg(msg) {
   } else if (msg.t === 'ping') {
     if (msg.idx !== room.me) addPing(msg);
   } else if (msg.t === 'outro') {
+    finale();
     setTimeout(beginOutro, 900);
   } else if (msg.t === 'end') {
     G.mode = 'results';
@@ -519,8 +536,9 @@ function updateCamera() {
     // quieto en el objetivo, después travelling hasta el jugador
     const u = ease(clamp((G.introT / G.introDur - 0.4) / 0.45, 0, 1));
     tx = G.introFrom.x + (p.x - G.introFrom.x) * u; ty = G.introFrom.y + (p.y - G.introFrom.y) * u; k = 0.08;
-  } else if (p.boarded && S.heli) {
-    tx = S.heli.x; ty = S.heli.y; k = 0.04;
+  } else if (p.boarded && (S.heli || S.exitCar)) {
+    const v = S.exitCar || S.heli;
+    tx = v.x; ty = v.y; k = 0.04;
   } else {
     const m = localControl.mouse;
     tx = p.x + (m.x - GW / 2) * 0.28; ty = p.y - 8 + (m.y - GH / 2) * 0.28;
@@ -534,10 +552,55 @@ function updateCamera() {
 // ---------------------------------------------------------------------------
 function updateLamps() {
   for (const l of S.world.lamps) {
+    if (l.litAt && S.t >= l.litAt) { l.lit = true; l.litAt = 0; if (l.ceiling) sfx('uiClick', 0.25); }
     let on = !!l.lit;
     if (on && l.flicker) { l.t++; if (Math.random() < 0.03 || (l.t % 240 < 14 && Math.random() < 0.7)) on = false; }
     l.on = on;
   }
+}
+
+// ---------------- puertas y armarios ----------------
+const LOCK_MSG = { keycard: 'NECESITAS LA TARJETA DE ACCESO', power: 'NO HAY ENERGIA' };
+function nearInteractable(p) {
+  let best = null, bd = 26;
+  for (const D of S.world.doors) {
+    if (D.open) continue;
+    const d = dist(p.x, p.y, D.x + D.w / 2, D.y + D.h / 2 + 2);
+    if (d < bd) { bd = d; best = { door: D }; }
+  }
+  for (const C of S.world.containers) {
+    if (C.searched) continue;
+    const d = dist(p.x, p.y, C.x + C.w / 2, C.y + C.h + 2);
+    if (d < bd) { bd = d; best = { box: C }; }
+  }
+  return best;
+}
+function interact(p) {
+  const it = nearInteractable(p);
+  if (!it) return;
+  if (it.door) {
+    const miss = doorLocked(it.door);
+    if (miss.length) { if (p.local) bus.emit('toast', LOCK_MSG[miss[0]]); sfx('empty'); return; }
+    openDoor(S.world, it.door);
+    sfx('reload', 0.6);
+    return;
+  }
+  // armario: botín al azar
+  searchContainer(S.world, it.box);
+  sfx('item');
+  const C = it.box, x = C.x + C.w / 2, y = C.y + C.h + 6, r = Math.random();
+  if (r < 0.4) addPickup('ammo', x, y);
+  else if (r < 0.6) addPickup('bandage', x, y);
+  else if (r < 0.7) addPickup('medkit', x, y);
+  else { const c = 4 + Math.floor(Math.random() * 7); p.coins += c; bus.emit('float', null); floatCoins(x, y - 10, c); }
+}
+function floatCoins(x, y, c) { import('./fx.js').then((m) => m.float(x, y, `+${c}`)); }
+function interactPrompt(p) {
+  const it = nearInteractable(p);
+  if (!it) return null;
+  if (it.box) return 'E  REVISAR';
+  const miss = doorLocked(it.door);
+  return miss.length ? (miss[0] === 'keycard' ? 'CERRADA · FALTA LA TARJETA' : 'CERRADA · SIN ENERGIA') : 'E  ABRIR';
 }
 
 // avisos de interacción del jugador local
@@ -547,12 +610,14 @@ function localPrompt(p) {
   if (hint) return hint;
   const fallen = S.players.find((o) => o !== p && o.dead && !o.boarded && dist(o.x, o.y, p.x, p.y) < 20);
   if (fallen) return 'MANTENE E  REVIVIR';
-  return nearShop(p) ? 'E  TIENDA' : null;
+  return interactPrompt(p) || (nearShop(p) ? 'E  TIENDA' : null);
 }
 
 function simulate(m) {
   net.capture = net.role === 'host';
   for (const p of S.players) if (!p.boarded) updatePlayer(p);
+  for (const p of S.players) if (!p.dead && !p.boarded && p.control.pressed('KeyE') && !interactHint(p)) interact(p);
+  updateNpcs();
   updateRevives();
   updateObjectives();
   if (m === 'play' || OVERLAY_MODES.has(m)) {
@@ -598,7 +663,7 @@ function step() {
     updatePings();
     if (G.mode === 'play') {
       ui.prompt(localPrompt(p));
-      if (!interactHint(p) && nearShop(p) && localControl.pressed('KeyE')) openShop(p);
+      if (!interactHint(p) && !nearInteractable(p) && nearShop(p) && localControl.pressed('KeyE')) openShop(p);
     }
     ui.updateHud(p);
     if (S.t % 20 === 0) {
@@ -609,8 +674,10 @@ function step() {
     if (net.role !== 'client') {
       const team = S.players.filter((q) => !q.gone);
       const allDown = team.every((q) => q.dead);
-      if (allDown && G.mode !== 'dead' && G.mode !== 'outro') { G.mode = 'dead'; ui.hideOverlays(); }
-      if (G.mode === 'dead' && !G.deathShown && Math.min(...team.map((q) => q.deadT)) > 90) showDeath();
+      const lost = (S.npcs || []).find((n) => n.dead && !n.static);
+      if ((allDown || lost) && G.mode !== 'dead' && G.mode !== 'outro' && G.mode !== 'results') { G.mode = 'dead'; G.failNpc = allDown ? null : lost; ui.hideOverlays(); }
+      const downT = G.failNpc ? G.failNpc.deadT : Math.min(...team.map((q) => q.deadT));
+      if (G.mode === 'dead' && !G.deathShown && downT > 90) showDeath();
     }
     if (net.role === 'host' && S.t % 3 === 0) { broadcast(encodeSnapshot(evBuf)); evBuf = []; }
   }
@@ -654,6 +721,7 @@ function clientStep(p) {
   if (p.hurtFlash > 0) p.hurtFlash = Math.max(0, p.hurtFlash - 0.03);
   if (p.local && p.hp < 30 && !p.dead && --p.lowHpBeat <= 0) { sfx('heartbeat', 0.8); p.lowHpBeat = 70; }
   interpolate(net.me);
+  for (const n of S.npcs || []) if (n.tx != null) { n.x += (n.tx - n.x) * 0.3; n.y += (n.ty - n.y) * 0.3; }
   updateBullets();
   if (S.t % 2 === 0) {
     sendToHost({
@@ -725,12 +793,13 @@ function render() {
   drawGroundMarkers();
   drawShop();
   drawPickups();
-  const list = [...worldDrawables(), ...zombieDrawables(), ...playerDrawables(), ...markerDrawables()];
+  const list = [...worldDrawables(), ...zombieDrawables(), ...playerDrawables(), ...npcDrawables(), ...markerDrawables()];
   list.sort((a, b) => a.y - b.y);
   for (const d of list) d.draw();
   drawBullets();
   drawParticles(false);
-  const extra = [...pickupLights(), ...markerLights()];
+  drawRoofs(me());
+  const extra = [...pickupLights(), ...markerLights(), ...npcLights()];
   if (S.level.shop && !S.menuMode) extra.push({ x: S.level.shop.x, y: S.level.shop.y - 10, r: 46, a: 0.7, color: 'rgba(255,190,90,' });
   drawLighting(extra);
   drawGas();

@@ -13,9 +13,11 @@ const G = {
   ' ': '000000000000000', '-': '000000111000000', '.': '000000000000010', '!': '010010010000010',
 };
 
-export function textWidth(str, scale = 1) { return str.length * 4 * scale - scale; }
+export function textWidth(str, scale = 1) { return String(str).normalize('NFD').replace(/[̀-ͯ]/g, '').length * 4 * scale - scale; }
 
 export function pixelText(ctx, str, x, y, color, scale = 1) {
+  // la fuente 3x5 no tiene tildes ni Ñ: se dibujan sin el acento
+  str = String(str).normalize('NFD').replace(/[̀-ͯ]/g, '');
   ctx.fillStyle = color;
   let cx = Math.round(x);
   for (const ch of str.toUpperCase()) {

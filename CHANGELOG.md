@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6 — El Hospital
+- Mundo 2 con tres noches nuevas: Aterrizaje forzoso, San Rafael y La salida.
+- Interiores: techos que se desvanecen, puertas con E, tarjeta de acceso,
+  puertas eléctricas, armarios con botín y zombies que rompen puertas.
+- Sobrevivientes: Ramiro (piloto herido) y Lucía, que te sigue y hay que
+  proteger.
+- Zombie enfermero y nuevo jefe, el Paciente Cero (gas y embestida).
+- Clima de ceniza, luces de techo que se prenden en cadena, luces de
+  emergencia y final cinematográfico en ambulancia.
+- Selector de mundos en historia y supervivencia (tres mapas nuevos).
+
 ## v0.5 — Pesadilla
 - Dificultad Pesadilla y progresión de armas (se encuentran o se compran).
 - Modo supervivencia con oleadas infinitas, suministros y récords.

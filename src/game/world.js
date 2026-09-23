@@ -40,7 +40,21 @@ const PROP_DEFS = {
   tree_green: { hit: () => box(7, 25, 7, 5), bullets: true }, tree_dead: { hit: () => box(7, 25, 7, 5), bullets: true },
   fence: { hit: () => box(0, 11, 48, 4) }, fence_b: { hit: () => box(0, 11, 48, 4) }, fence_c: { hit: () => box(0, 11, 48, 4) },
   birch_green: { hit: () => box(15, 39, 9, 6), bullets: true }, birch_dead: { hit: () => box(15, 39, 9, 6), bullets: true },
+  // interiores (search: se puede revisar con E y suelta botín)
+  int_bed: { hit: (w, h) => box(1, 6, w - 2, h - 8) }, int_bed_blood: { hit: (w, h) => box(1, 6, w - 2, h - 8) },
+  int_gurney: { hit: (w, h) => box(1, 6, w - 2, h - 8) },
+  int_locker: { hit: (w, h) => box(0, 14, w, h - 14), bullets: true, search: true },
+  int_medcab: { hit: (w, h) => box(0, 12, w, h - 12), bullets: true, search: true },
+  int_shelf: { hit: (w, h) => box(0, 12, w, h - 12), bullets: true, search: true },
+  int_desk: { hit: (w, h) => box(0, 9, w, h - 9), bullets: true, search: true },
+  int_counter: { hit: (w, h) => box(0, 6, w, h - 6), bullets: true },
+  int_iv: { hit: () => box(3, 20, 3, 3) }, int_curtain: { hit: (w, h) => box(0, h - 5, w, 4) },
+  int_chairs: { hit: (w, h) => box(1, 6, w - 2, h - 7) }, int_wheelchair: { hit: (w, h) => box(2, 8, w - 4, h - 9) },
+  int_plant: { hit: () => box(3, 12, 6, 5) },
+  ambulance: { hit: (w, h) => box(2, 10, w - 4, h - 12), bullets: true, shadow: true },
 };
+const SEARCH_OPEN = { int_locker: 'int_locker_open', int_medcab: 'int_medcab_open' };
+const WF = 20; // alto de la cara de las paredes interiores
 const FLAT = new Set(['tuft_green', 'tuft_dead', 'puddle', 'manhole', 'cardboard', 'posters', 'trash_bag']);
 
 const FACADE = 30; // alto visible de la pared en perspectiva 3/4
@@ -57,13 +71,17 @@ export function buildWorld(L) {
     W: L.W, H: L.H, base: L.ground, baseFilter: L.groundFilter,
     areas: L.areas || [], lines: L.lines || [], zebras: L.zebras || [],
     solids: [], props: [], buildings: [], lamps: [], hash: new Map(), R,
+    walls: [], doors: [], roofs: (L.roofs || []).map((r) => ({ ...r, a: 1 })),
   };
 
   for (const b of L.buildings || []) addBuilding(W, b, R);
+  for (const w of L.walls || []) addWall(W, w);
+  for (const d of L.doors || []) addDoor(W, d);
   for (const p of L.props || []) addProp(W, p.k, p.x, p.y, p);
   for (const l of L.lamps || []) {
-    addProp(W, 'streetlight', l.x - 3, l.y - 49, {});
-    W.lamps.push({ x: l.x, y: l.y, r: l.r || 78, flicker: !!l.flicker, on: true, t: R() * 100 });
+    // las luces de techo (interiores) no llevan poste
+    if (!l.ceiling) addProp(W, 'streetlight', l.x - 3, l.y - 49, {});
+    W.lamps.push({ x: l.x, y: l.y, r: l.r || 78, flicker: !!l.flicker, on: true, t: R() * 100, color: l.color, emergency: !!l.emergency, ceiling: !!l.ceiling });
   }
   for (const f of L.fences || []) {
     for (let i = 0; i < f.len; i += 48) { const r = R(); addProp(W, r < 0.7 ? 'fence' : r < 0.85 ? 'fence_b' : 'fence_c', f.x + i, f.y); }
@@ -84,6 +102,7 @@ export function buildWorld(L) {
       i++;
     }
   }
+  W.containers = W.props.filter((p) => p.def?.search);
   rebuildHash(W);
   buildGrid(W);
   return W;
@@ -119,6 +138,49 @@ export function addProp(W, k, x, y, opt = {}) {
     W.solids.push(solid);
   }
   return P;
+}
+
+// ---------------- paredes interiores y puertas ----------------
+// Las paredes son rectángulos (planta) que en 3/4 "suben" WF píxeles: se ve la
+// tapa arriba y la cara al frente. Las verticales se parten en tramos de 16px
+// para que el orden por profundidad funcione a lo largo de la pared.
+function addWall(W, w) {
+  const style = w.style || 'white';
+  if (w.h > w.w) {
+    for (let y = w.y; y < w.y + w.h; y += 16) {
+      const h = Math.min(16, w.y + w.h - y);
+      W.walls.push({ x: w.x, y, w: w.w, h, style, vertical: true, bottom: y + h >= w.y + w.h, sortY: y + h });
+    }
+  } else W.walls.push({ ...w, style, sortY: w.y + w.h });
+  W.solids.push({ x: w.x, y: w.y, w: w.w, h: w.h, bullets: true, ref: { kind: 'wall' } });
+}
+
+function addDoor(W, d) {
+  const D = { w: 16, h: 8, lock: null, hp: 240, ...d, open: false, sortY: d.y + (d.h || 8) };
+  D.solid = { x: D.x, y: D.y, w: D.w, h: D.h, bullets: true, ref: { kind: 'building' } };
+  W.doors.push(D);
+  W.solids.push(D.solid);
+  if (d.open) openDoor(W, D, false, true);
+}
+
+export function openDoor(W, D, broken = false, silent = false) {
+  if (D.open) return;
+  D.open = true; D.broken = broken;
+  W.solids = W.solids.filter((s) => s !== D.solid);
+  if (!silent) { rebuildHash(W); buildGrid(W); }
+}
+
+// cerraduras: 'keycard' (tarjeta), 'power' (energía) o ambas
+export function doorLocked(D) {
+  const locks = [].concat(D.lock || []);
+  return locks.filter((l) => !S.flags?.has(l));
+}
+
+export function searchContainer(W, P) {
+  if (P.searched) return false;
+  P.searched = true;
+  if (SEARCH_OPEN[P.k]) P.k = SEARCH_OPEN[P.k];
+  return true;
 }
 
 export function removeProp(W, P) {
@@ -338,10 +400,69 @@ function drawBuilding(b) {
   }
 }
 
+const CAP = '#342c40', CAP_EDGE = '#4d4560';
+function drawWall(w) {
+  if (w.vertical) {
+    rect(w.x, w.y - WF, w.w, w.h, CAP);
+    rect(w.x, w.y - WF, 1, w.h, CAP_EDGE);
+    if (w.bottom) {
+      fillPattern(`env/wall_${w.style}`, w.x, w.y + w.h - WF, w.w, WF);
+      rect(w.x, w.y + w.h - 2, w.w, 2, 'rgba(0,0,0,0.45)');
+    }
+    return;
+  }
+  rect(w.x, w.y - WF, w.w, w.h, CAP);
+  rect(w.x, w.y - WF, w.w, 1, CAP_EDGE);
+  fillPattern(`env/wall_${w.style}`, w.x, w.y - WF + w.h, w.w, WF);
+  rect(w.x, w.y - WF + w.h, w.w, 1, 'rgba(0,0,0,0.5)');
+  rect(w.x, w.y + w.h - 2, w.w, 2, 'rgba(0,0,0,0.45)');
+}
+
+function drawDoor(D) {
+  const top = D.y + D.h - WF;
+  rect(D.x, D.y - WF, D.w, D.h, CAP);
+  if (D.open) {
+    rect(D.x, top, D.w, WF, 'rgba(10,8,14,0.55)');
+    rect(D.x, top, 1, WF, '#2c1d35'); rect(D.x + D.w - 1, top, 1, WF, '#2c1d35');
+    if (!D.broken) sprite('env/door_ajar', D.x, D.y + D.h - 25);
+  } else {
+    sprite(`env/${D.key || 'door'}`, D.x, D.y + D.h - 25);
+  }
+  if (D.lock) {
+    const locked = doorLocked(D).length > 0;
+    rect(D.x + D.w / 2 - 1, D.y - WF + 2, 3, 2, locked ? (Math.floor(S.t / 20) % 2 ? '#ff4a3a' : '#7a1c16') : '#7cff8f');
+  }
+  if (D.label) {
+    const tw = textWidth(D.label), lx = sx(D.x + D.w / 2) - Math.floor(tw / 2), ly = sy(D.y - WF) - 9;
+    ctx.fillStyle = 'rgba(10,10,14,0.85)'; ctx.fillRect(lx - 2, ly - 2, tw + 4, 9);
+    pixelText(ctx, D.label, lx, ly, D.labelColor || '#9fd0ff');
+  }
+}
+
+// Techos de edificios con interior: se desvanecen cuando el jugador local entra.
+export function drawRoofs(local) {
+  for (const r of S.world.roofs || []) {
+    const inside = local && local.x > r.x && local.x < r.x + r.w && local.y > r.y && local.y < r.y + r.h + 6;
+    r.a += ((inside ? 0 : 1) - r.a) * 0.12;
+    if (r.a < 0.02 || !onScreen(r.x + r.w / 2, r.y, Math.max(r.w, r.h))) continue;
+    ctx.save();
+    ctx.globalAlpha = r.a;
+    drawRoof({ x: r.x - 2, y: r.y - WF - 2, w: r.w + 4, h: r.h + FACADE - 2, roof: r.roof, roofFilter: r.roofFilter, roofDecor: [] });
+    if (r.label) {
+      const tw = textWidth(r.label), lx = sx(r.x + r.w / 2) - Math.floor(tw / 2), ly = sy(r.y + r.h / 2 - WF);
+      ctx.fillStyle = 'rgba(10,10,14,0.85)'; ctx.fillRect(lx - 3, ly - 2, tw + 6, 9);
+      pixelText(ctx, r.label, lx, ly, r.labelColor || '#ffcf6b');
+    }
+    ctx.restore();
+  }
+}
+
 // Lista de dibujables ordenados por "pies" (painter's algorithm en 3/4).
 export function worldDrawables() {
   const W = S.world, out = [];
   for (const b of W.buildings) if (onScreen(b.x, b.y, Math.max(b.w, b.h) + 20)) out.push({ y: b.sortY, draw: () => drawBuilding(b) });
+  for (const w of W.walls) if (onScreen(w.x + w.w / 2, w.y, Math.max(w.w, w.h) / 2 + 40)) out.push({ y: w.sortY, draw: () => drawWall(w) });
+  for (const d of W.doors) if (onScreen(d.x, d.y, 40)) out.push({ y: d.sortY, draw: () => drawDoor(d) });
   for (const p of W.props) {
     if (p.flat || !onScreen(p.x + p.w / 2, p.y + p.h / 2, 60)) continue;
     out.push({ y: p.sortY, draw: () => sprite(`env/${p.k}`, p.x, p.y, p.hitFlash > 0 ? { filter: 'brightness(2.2)' } : undefined) });

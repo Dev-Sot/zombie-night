@@ -5,7 +5,7 @@ import { sfx, playMusic } from '../core/audio.js';
 import { ZTYPES } from '../game/zombies.js';
 import { FX } from '../game/fx.js';
 import { ghostShot } from '../game/weapons.js';
-import { removeProp } from '../game/world.js';
+import { removeProp, openDoor, searchContainer } from '../game/world.js';
 
 const DIRS = ['down', 'up', 'side', 'sideleft'];
 const ZSTATES = ['walk', 'attack', 'throw', 'dying', 'dead', 'scream'];
@@ -36,6 +36,11 @@ export function encodeSnapshot(events) {
     l: S.world.lamps.map((l) => (l.lit ? 1 : 0)).join(''),
     b: S.boss ? S.boss.id : 0,
     g: (S.gas || []).map((g) => [r1(g.x), r1(g.y), g.t]),
+    n: (S.npcs || []).map((n) => [r1(n.x), r1(n.y), DIRS.indexOf(n.dir), n.moving ? 1 : 0, r1(n.walk), Math.ceil(n.hp), n.dead ? 1 : 0, n.deadT, n.follow ? 1 : 0, n.boarded ? 1 : 0, r2(n.hurtFlash), n.deathDir === 'sideleft' ? 1 : 0]),
+    dr: S.world.doors.map((d) => (d.open ? (d.broken ? 2 : 1) : 0)).join(''),
+    ct: S.world.containers.map((c) => (c.searched ? 1 : 0)).join(''),
+    fl: [...(S.flags || [])],
+    ex: S.exitCar ? [r1(S.exitCar.x), S.exitCar.leaving ? 1 : 0] : null,
     v: S.surv ? [S.surv.wave, S.surv.left, S.surv.total, S.surv.breather] : null,
     e: events,
   };
@@ -85,6 +90,21 @@ export function applySnapshot(s, me) {
   }
   [S.wave, S.kills, S.shots, S.hits] = s.w;
   S.gas = (s.g || []).map(([x, y, t]) => ({ x, y, t }));
+  (s.n || []).forEach((a, i) => {
+    const n = S.npcs?.[i];
+    if (!n) return;
+    const [x, y, dir, moving, walk, hp, dead, deadT, follow, boarded, hurt, dd] = a;
+    n.tx = x; n.ty = y;
+    if (Math.hypot(n.x - x, n.y - y) > 40) { n.x = x; n.y = y; }
+    Object.assign(n, { dir: DIRS[dir], moving: !!moving, walk, hp, dead: !!dead, deadT, follow: !!follow, boarded: !!boarded, hurtFlash: hurt, deathDir: dd ? 'sideleft' : 'side' });
+  });
+  [...(s.dr || '')].forEach((c, i) => { const D = S.world.doors[i]; if (D && c !== '0' && !D.open) openDoor(S.world, D, c === '2'); });
+  [...(s.ct || '')].forEach((c, i) => { const C = S.world.containers[i]; if (C && c === '1') searchContainer(S.world, C); });
+  S.flags = new Set(s.fl || []);
+  if (s.ex) {
+    const m = S.objective?.markers.find((q) => q.type === 'ambulance');
+    if (m) { m.state = 1; S.exitCar = m; if (!m.leaving) m.x = s.ex[0]; }
+  }
   if (s.v && S.surv) [S.surv.wave, S.surv.left, S.surv.total, S.surv.breather] = s.v;
   if (s.h) {
     const [x, y, t, leaving] = s.h;

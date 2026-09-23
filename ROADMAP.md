@@ -40,31 +40,25 @@ Plan de desarrollo por fases. Cada fase termina desplegada en Vercel.
 - [x] Sonido real CC0 (disparos, zombies, recargas, música).
 - [x] Hacha, zombie gritón y zombie hinchado.
 
-## Fase 5 — Mundo 2: El Hospital (siguiente)
-El helicóptero no llega lejos: se queda sin combustible y cae en el distrito
-del hospital. Por la radio se escucha a Lucía, una enfermera atrapada en la
-sala de cuarentena del Hospital San Rafael.
+## Fase 5 — Mundo 2: El Hospital (completa)
+- [x] Noche 4 · Aterrizaje forzoso, Noche 5 · San Rafael, Noche 6 · La salida.
+- [x] Interiores, puertas con E, tarjeta y energía, armarios con botín.
+- [x] Sobrevivientes a rescatar y escoltar (Lucía) y NPC herido (Ramiro).
+- [x] Paciente Cero, zombie enfermero, ceniza, luces en cadena y final en ambulancia.
+- [x] Selector de mundos.
 
-**Noche 4 · Aterrizaje forzoso.** Parque destruido junto al hospital. El
-piloto quedó herido: hay que conseguirle un botiquín en la farmacia de la
-esquina (primer interior con puertas) y defender el helicóptero caído.
+## Fase 6 — Logros y tabla pública (siguiente)
+- [ ] Logros (primera sangre, sin daño, noche en pesadilla, 1000 bajas, etc.)
+      con aviso en pantalla y pantalla de logros.
+- [ ] Tabla pública de supervivencia por mapa y dificultad: mejor oleada,
+      nombre y fecha. Necesita un backend chico (función serverless en
+      Vercel + base de datos) con validación básica contra trampas.
+- [ ] Estadísticas del jugador (bajas totales, noches jugadas, armas favoritas).
 
-**Noche 5 · San Rafael.** El hospital por dentro: pasillos, habitaciones con
-puertas que se abren con E, armarios para revisar, y la tarjeta de acceso a
-cuarentena. Hay que restablecer el generador de emergencia para abrir las
-puertas eléctricas. Luces que parpadean y zombies con uniforme de enfermero.
-
-**Noche 6 · La salida.** Escoltar a Lucía (un personaje que te sigue y al que
-los zombies pueden atrapar) hasta la ambulancia del estacionamiento. Jefe:
-el Paciente Cero.
-
-Mecánicas nuevas que trae:
-- [ ] Interiores: techos que desaparecen al entrar y puertas que se abren con E.
-- [ ] Contenedores para revisar (armarios, cajones) con botín al azar.
-- [ ] Puertas cerradas con llave o tarjeta.
-- [ ] Personajes a rescatar y escoltar (NPC con su propia IA).
-- [ ] Jefe nuevo: el Paciente Cero.
-- [ ] Selector de mundos en el menú.
+## Mundo 3 — El puerto (idea)
+Lucía conoce un lugar: el puerto. Dicen que todavía salen barcos. Muelles
+con niebla, contenedores como laberinto, un faro que hay que encender y un
+barco que zarpa con o sin vos.
 
 ## Más adelante
 - [ ] Servidor TURN propio para redes muy restrictivas (hoy se usan los STUN públicos).

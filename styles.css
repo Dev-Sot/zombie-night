@@ -317,3 +317,5 @@ body.touch-device .topControls{ top:14%; bottom:auto; }
     align-items:center; justify-content:center; text-align:center; font-size:12px; line-height:2.4; padding:24px;
   }
 }
+
+.diff-toggle.worlds .diff{ font-size:.85em; padding:.7em 1.2em; }

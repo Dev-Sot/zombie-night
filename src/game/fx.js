@@ -178,6 +178,14 @@ export function updateWeather() {
     }
   }
   if (weather.kind === 'fog') for (const f of fog) { f.x += f.v; if (f.x > S.world.W + 150) f.x = -150; }
+  if (weather.kind === 'ash') {
+    for (let i = 0; i < 70; i++) {
+      const d = drops[i];
+      d.x += Math.sin((S.t + i * 37) * 0.02) * 0.3 - 0.15; d.y += d.v * 0.1;
+      if (d.y > GH) { d.y = rand(-10, 0); d.x = rand(0, GW); }
+      if (d.x < -4) d.x = GW;
+    }
+  }
 }
 
 export function drawWeather() {
@@ -190,6 +198,15 @@ export function drawWeather() {
     ctx.stroke();
     ctx.fillStyle = 'rgba(190,210,235,0.35)';
     for (const s of splashes) { ctx.fillRect(s.x - 1, s.y, 1, 1); ctx.fillRect(s.x + 1, s.y, 1, 1); ctx.fillRect(s.x, s.y - 1, 1, 1); }
+  }
+  if (weather.kind === 'ash') {
+    for (let i = 0; i < 70; i++) {
+      const d = drops[i];
+      ctx.fillStyle = i % 9 === 0 ? `rgba(255,${140 + (i % 5) * 20},60,${0.5 + Math.sin(S.t * 0.1 + i) * 0.3})` : 'rgba(170,165,160,0.45)';
+      ctx.fillRect(Math.round(d.x), Math.round(d.y), i % 4 === 0 ? 2 : 1, 1);
+    }
+    // cielo tiñido por el incendio
+    ctx.fillStyle = 'rgba(120,50,20,0.08)'; ctx.fillRect(0, 0, GW, GH);
   }
   if (weather.kind === 'fog') {
     for (const f of fog) {
@@ -220,7 +237,7 @@ export function drawLighting(extra) {
   lctx.fillRect(0, 0, GW, GH);
   lctx.globalCompositeOperation = 'destination-out';
   for (const p of S.players) {
-    if (p.dead && p.deadT > 120) continue;
+    if ((p.dead && p.deadT > 120) || p.boarded) continue;
     const X = sx(p.x), Y = sy(p.y - 6);
     hole(X, Y, p.lightOn ? 50 : 26, 0.9);
     if (p.lightOn && !p.dead) {
@@ -232,7 +249,7 @@ export function drawLighting(extra) {
       lctx.restore();
     }
   }
-  for (const l of W.lamps) if (l.on && onScreen(l.x, l.y, l.r)) hole(sx(l.x), sy(l.y - 8), l.r, 0.85);
+  for (const l of W.lamps) if (l.on && onScreen(l.x, l.y, l.r)) hole(sx(l.x), sy(l.y - 8), l.r, l.emergency ? 0.55 : 0.85);
   for (const l of S.lights) if (onScreen(l.x, l.y, l.r)) hole(sx(l.x), sy(l.y), l.r * (0.6 + 0.4 * l.life / l.max), Math.min(1, l.life / l.max * 1.5));
   extra?.forEach((e) => { if (onScreen(e.x, e.y, e.r)) hole(sx(e.x), sy(e.y), e.r, e.a ?? 0.8); });
   lctx.globalCompositeOperation = 'source-over';
@@ -244,8 +261,9 @@ export function drawLighting(extra) {
   for (const l of W.lamps) {
     if (!l.on || !onScreen(l.x, l.y, l.r)) continue;
     const X = sx(l.x), Y = sy(l.y - 8);
+    const col = l.color || 'rgba(255,180,90,';
     const g = ctx.createRadialGradient(X, Y, 0, X, Y, l.r * 0.8);
-    g.addColorStop(0, 'rgba(255,180,90,0.16)'); g.addColorStop(1, 'rgba(255,180,90,0)');
+    g.addColorStop(0, `${col}${l.emergency ? 0.3 : 0.16})`); g.addColorStop(1, `${col}0)`);
     ctx.fillStyle = g; ctx.fillRect(X - l.r, Y - l.r, l.r * 2, l.r * 2);
   }
   for (const l of S.lights) {

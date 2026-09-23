@@ -17,13 +17,25 @@ export const SURVIVAL_DESC = {
   1: 'El barrio bajo la lluvia. Calles abiertas, poca cobertura.',
   2: 'El centro con niebla. Esquinas ciegas y callejones.',
   3: 'Las afueras en tormenta. Campo abierto y la granja.',
+  4: 'El parque frente al hospital, bajo la ceniza del incendio.',
+  5: 'Adentro del hospital. Pasillos angostos y puertas que se rompen.',
+  6: 'El estacionamiento de emergencias bajo la lluvia.',
+  4: 'El parque frente al hospital, bajo la ceniza del incendio.',
+  5: 'Adentro del hospital. Pasillos angostos y puertas que se rompen.',
+  6: 'El estacionamiento de emergencias bajo la lluvia.',
+  4: 'El parque frente al hospital, bajo la ceniza del incendio.',
+  5: 'Adentro del hospital. Pasillos angostos y puertas que se rompen.',
+  6: 'El estacionamiento de emergencias bajo la lluvia.',
 };
 
 export function survivalLevel(L) {
   return {
     ...L, survival: true, lampsOff: false, intro: null, outro: null,
     objective: [{ type: 'endless', text: 'Sobreviví' }],
-    weaponSpots: [],
+    weaponSpots: [], npcs: [], finale: null,
+    doors: (L.doors || []).map((d) => ({ ...d, open: !d.lock })), npcs: [], finale: null,
+    doors: (L.doors || []).map((d) => ({ ...d, open: !d.lock })), npcs: [], finale: null,
+    doors: (L.doors || []).map((d) => ({ ...d, open: !d.lock })),
     loadout: { weapons: ['bat', 'pistol'], ammo: { pistol: 48 }, bandage: 1, coins: 20 },
     shopItems: ['ammo_pistol', 'ammo_shotgun', 'ammo_rifle', 'bandage', 'medkit', 'shotgun', 'rifle'],
   };

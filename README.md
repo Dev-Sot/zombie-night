@@ -18,9 +18,11 @@
 
 ---
 
-Tres noches, una ciudad sin luz. Devolvé la electricidad al barrio, pedí
-ayuda por radio desde la comisaría y resistí en la granja hasta que llegue el
-helicóptero. Cada noche tiene su clima, su historia y su forma de terminar.
+Seis noches en dos mundos. En **la ciudad**, devolvé la electricidad al
+barrio, pedí ayuda por radio y resistí en la granja hasta que llegue el
+helicóptero. En **el hospital**, el helicóptero cae frente al San Rafael:
+curá al piloto, entrá a oscuras, devolvé la energía, rescatá a Lucía y
+escoltala hasta la ambulancia mientras el Paciente Cero los persigue.
 
 <table>
   <tr>
@@ -39,12 +41,34 @@ helicóptero. Cada noche tiene su clima, su historia y su forma de terminar.
     <td align="center"><b>Noche 3 · El Rescate</b><br>Tormenta, el Gigante y el helicóptero</td>
     <td align="center"><b>Juntos</b><br>Cooperativo online de 2 a 4 jugadores</td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/noche4.png" alt="Noche 4: Aterrizaje forzoso"></td>
+    <td><img src="docs/screenshots/noche5.png" alt="Noche 5: San Rafael"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Noche 4 · Aterrizaje forzoso</b><br>El helicóptero en llamas, bajo la ceniza</td>
+    <td align="center"><b>Noche 5 · San Rafael</b><br>Adentro del hospital con Lucía</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/noche6.png" alt="Noche 6: La salida"></td>
+    <td><img src="docs/screenshots/niveles.png" alt="Elegir noche"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Noche 6 · La salida</b><br>El Paciente Cero</td>
+    <td align="center"><b>Dos mundos, dos dificultades</b><br>Historia y supervivencia</td>
+  </tr>
 </table>
 
 ## Características
 
-- **Tres niveles con historia**: objetivos por pasos (juntar, llevar, activar,
-  defender una zona, sobrevivir, jefe final) en vez de oleadas infinitas.
+- **Seis noches con historia en dos mundos**: objetivos por pasos (juntar,
+  llevar, activar, defender, rescatar, escoltar, jefe final) en vez de
+  oleadas infinitas.
+- **Interiores**: edificios a los que se entra (el techo desaparece),
+  puertas que se abren con E, puertas con tarjeta o que necesitan energía,
+  armarios para revisar y zombies que rompen las puertas.
+- **Sobrevivientes**: Lucía te sigue por el mapa, los zombies también la
+  atacan y si muere se pierde la noche.
 - **Cooperativo online de 2 a 4 jugadores**: uno crea una sala, comparte un
   código de 5 letras (o un enlace) y el resto se une desde el navegador. Si
   un compañero cae, se lo revive manteniendo **E** a su lado. Chat de sala y
@@ -61,9 +85,9 @@ helicóptero. Cada noche tiene su clima, su historia y su forma de terminar.
 - **Arsenal e inventario**: bate, hacha, pistola, escopeta y rifle automático
   con el arma visible en la mano. Las armas se encuentran o se compran: no
   vienen todas de entrada.
-- **Ocho tipos de zombie**: caminante, corredor, lanzador de hachas, bruto,
-  tóxico, **gritón** (llama a la horda), **hinchado** (revienta en gas tóxico)
-  y el Gigante. Rodean los edificios buscando el camino más corto.
+- **Diez tipos de zombie**: caminante, enfermero, corredor, lanzador de
+  hachas, bruto, tóxico, **gritón** (llama a la horda), **hinchado** (revienta
+  en gas tóxico) y dos jefes: el Gigante y el **Paciente Cero**. Rodean los edificios buscando el camino más corto.
 - **Mapas en perspectiva 3/4**: calles, veredas, cruces peatonales, edificios
   con techo y fachada, autos como cobertura y barriles que explotan en cadena.
 - **Iluminación dinámica**: linterna, faroles que titilan, fogonazos, bengalas
@@ -82,7 +106,7 @@ helicóptero. Cada noche tiene su clima, su historia y su forma de terminar.
 | **R** | recargar |
 | **1-5 / rueda** | cambiar arma |
 | **Q** | curarse |
-| **E** | interactuar / tienda |
+| **E** | interactuar / abrir puertas / revisar armarios / tienda |
 | **Mantener E** | revivir a un compañero |
 | **F** | linterna |
 | **G / clic del medio** | marcar un lugar |
@@ -171,6 +195,8 @@ Ver [ROADMAP.md](ROADMAP.md) y el historial en [CHANGELOG.md](CHANGELOG.md).
 - Música (CC0): *Chill Main Menu Music* de Augmentality, *Post Apocalyptic
   Wastelands* de Juhani Junkala, *Determined Pursuit* de Emma_MA y *Dramatic
   Boss Encounter* de cynicmusic, todas vía [OpenGameArt](https://opengameart.org).
+- Mobiliario y pisos del hospital: dibujados para el juego con
+  `tools/make_interior.py`, usando la paleta del pack principal.
 - Fuente: *Press Start 2P* por CodeMan38 (SIL Open Font License).
 - Conexiones en red: [PeerJS](https://peerjs.com) (MIT).
 

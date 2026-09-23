@@ -2,7 +2,8 @@ import { ZOMBIE_FRAMES } from '../core/assets.js';
 import { frame, ctx, sx, sy, onScreen } from '../core/render.js';
 import { S, rand, pick, dist, bus } from '../core/state.js';
 import { sfx } from '../core/audio.js';
-import { moveEntity, lineClear, flowTarget, bulletSolidAt, updateFlow, cellFree } from './world.js';
+import { moveEntity, lineClear, flowTarget, bulletSolidAt, updateFlow, cellFree, openDoor } from './world.js';
+import { npcTargets } from './npc.js';
 import { blood, splat, float, shake, burst, light } from './fx.js';
 import { hurtPlayer } from './player.js';
 import { dropLoot, addPickup } from './pickups.js';
@@ -19,6 +20,10 @@ export const ZTYPES = {
   screamer: { sprite: 'walker', hp: 40, speed: 0.72, dmg: 6, r: 6, coin: 3, filter: 'grayscale(0.75) brightness(1.4) contrast(1.15)', screamer: true },
   // hinchado: lento, revienta en una nube tóxica al morir o al alcanzarte
   bloater: { sprite: 'brute', hp: 95, speed: 0.34, dmg: 0, r: 10, scale: 1.35, knockRes: 0.5, coin: 3, filter: 'hue-rotate(55deg) saturate(1.8) brightness(1.08)', bloater: true },
+  // enfermero: el caminante del hospital
+  nurse: { sprite: 'walker', hp: 52, speed: 0.6, dmg: 11, r: 6, coin: 1, filter: 'grayscale(0.55) hue-rotate(150deg) brightness(1.3)' },
+  // Paciente Cero: jefe del Mundo 2, vomita gas y embiste
+  pzero: { sprite: 'brute', hp: 2300, speed: 0.55, dmg: 30, r: 15, scale: 2.2, knockRes: 0.95, coin: 60, filter: 'grayscale(0.85) brightness(1.4) contrast(1.25)', boss: true, pzero: true },
   boss: { sprite: 'brute', hp: 1700, speed: 0.6, dmg: 30, r: 15, scale: 2.1, knockRes: 0.95, coin: 40, filter: 'hue-rotate(-35deg) saturate(1.5) brightness(0.9)', boss: true },
 };
 
@@ -43,7 +48,7 @@ function dirFrom(dx, dy) {
 
 function nearestPlayer(z) {
   let best = null, bd = 1e9;
-  for (const p of S.players) {
+  for (const p of [...S.players, ...npcTargets()]) {
     if (p.dead || p.boarded) continue;
     const d = dist(p.x, p.y, z.x, z.y);
     if (d < bd) { bd = d; best = p; }
@@ -84,7 +89,7 @@ function killZombie(z, angle, by) {
 
 let flowTimer = 0;
 export function updateZombies() {
-  const alive = S.players.filter((p) => !p.dead && !p.boarded);
+  const alive = [...S.players.filter((p) => !p.dead && !p.boarded), ...npcTargets()];
   if (alive.length && --flowTimer <= 0) { updateFlow(alive); flowTimer = 20; }
 
   for (const z of S.zombies) {
@@ -171,12 +176,26 @@ export function updateZombies() {
     }
     // los lanzadores mantienen distancia
     let sp = z.speed * (z.alert || d < 280 ? 1 : 0.6);
+    if (z.T.pzero) {
+      z.special = (z.special ?? 240) - 1;
+      if (z.special <= 0) { z.special = 330; gasCloud(z.x, z.y - 10); z.charge = 55; sfx('scream'); }
+      if (z.charge > 0) { z.charge--; sp *= 2.8; }
+    }
     if (z.T.ranged && d < 80 && lineClear(z.x, z.y, p.x, p.y)) { mx = -mx; my = -my; sp *= 0.7; }
     const vx = (mx + sepx * 1.2) * sp, vy = (my + sepy * 1.2) * sp;
     const ox = z.x, oy = z.y;
     moveEntity(z, vx, vy);
     const moved = Math.hypot(z.x - ox, z.y - oy);
-    if (moved < sp * 0.2) { z.stuck++; if (z.stuck > 40) { moveEntity(z, rand(-2, 2), rand(-2, 2)); z.stuck = 0; } } else z.stuck = 0;
+    if (moved < sp * 0.2) {
+      z.stuck++;
+      // contra una puerta sin cerradura: la golpea hasta romperla
+      const door = z.stuck > 8 && S.world.doors.find((D) => !D.open && !D.lock && Math.abs(D.x + D.w / 2 - z.x) < 18 && Math.abs(D.y + D.h / 2 - z.y) < 18);
+      if (door) {
+        door.hp -= z.T.boss ? 6 : 1; z.stuck = 9;
+        if (S.t % 40 === 0) sfx('bat', 0.5);
+        if (door.hp <= 0) { openDoor(S.world, door, true); burst(door.x + 8, door.y, 14, { color: '#704f48', type: 'blood', speed: 2, size: 2 }); sfx('explosion', 0.3); }
+      } else if (z.stuck > 40) { moveEntity(z, rand(-2, 2), rand(-2, 2)); z.stuck = 0; }
+    } else z.stuck = 0;
     z.anim += 0.1 + moved * 0.12;
   }
   S.zombies = S.zombies.filter((z) => z.state !== 'dead' || z.corpse > 0);

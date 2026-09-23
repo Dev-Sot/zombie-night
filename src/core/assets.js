@@ -20,6 +20,10 @@ const ENV = [
   'car_red', 'car_blue', 'car_gray', 'van', 'truck', 'bus', 'car_flipped', 'car_rust', 'car_scrap', 'tractor',
   'spruce_green', 'pine_green', 'tree_green', 'birch_green', 'bush_green', 'tuft_green',
   'spruce_dead', 'pine_dead', 'tree_dead', 'birch_dead', 'bush_dead', 'tuft_dead', 'puddle',
+  // Mundo 2 (tools/make_interior.py)
+  'int_floor', 'int_floor_blood', 'int_lino', 'int_bed', 'int_bed_blood', 'int_gurney', 'int_locker', 'int_locker_open',
+  'int_medcab', 'int_medcab_open', 'int_desk', 'int_counter', 'int_iv', 'int_curtain', 'int_chairs', 'int_wheelchair',
+  'int_plant', 'int_shelf', 'ambulance', 'door_ajar',
 ];
 
 const MANIFEST = [];
@@ -34,7 +38,7 @@ for (const [z, f] of Object.entries(ZOMBIE_FRAMES)) {
   ['side', 'sideleft'].forEach((d) => add(`zombies/${z}_death_${d}`, f.death));
 }
 ENV.forEach((e) => add(`env/${e}`));
-['ammo', 'bandage', 'fuel', 'medkit', 'radio'].forEach((p) => add(`pickups/${p}`));
+['ammo', 'bandage', 'fuel', 'medkit', 'radio', 'keycard', 'surgkit'].forEach((p) => add(`pickups/${p}`));
 
 const sheets = {};
 

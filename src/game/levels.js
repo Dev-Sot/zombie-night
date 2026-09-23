@@ -1,6 +1,7 @@
 // Definición de niveles (datos puros). Coordenadas en píxeles de mundo.
 // Edificios en perspectiva 3/4: (x,y) es la esquina del techo, h incluye la
 // fachada de 30px de abajo, y la puerta siempre va en la fachada.
+import { LEVELS_W2 } from './levels_w2.js';
 
 const road = (x, y, w, h) => ({ tile: 'ground_asphalt', x, y, w, h, road: true });
 const walk = (x, y, w, h) => ({ tile: 'ground_sidewalk', x, y, w, h, road: true, edge: 'rgba(0,0,0,0.35)' });
@@ -11,7 +12,7 @@ const MIX_1 = [['walker', 6, 1], ['runner', 3, 2], ['brute', 1, 4], ['screamer',
 const MIX_2 = [['walker', 5, 1], ['runner', 3, 1], ['thrower', 2, 2], ['brute', 1, 3], ['toxic', 1, 5], ['screamer', 1, 2], ['bloater', 1, 4]];
 const MIX_3 = [['walker', 4, 1], ['runner', 3, 1], ['thrower', 2, 1], ['brute', 2, 2], ['toxic', 2, 2], ['screamer', 1, 1], ['bloater', 2, 2]];
 
-export const LEVELS = [
+const LEVELS_W1 = [
   // =========================================================================
   {
     id: 1, name: 'El Apagón', tag: 'BARRIO · LLUVIA', color: '#2a3140',
@@ -217,7 +218,8 @@ export const LEVELS = [
   },
 ];
 
-export const LEVEL4 = { id: 4, name: 'Juntos', tag: 'ONLINE · 2 A 4', color: '#1b2830', desc: 'Cooperativo online. Creá una sala, pasá el código y sobrevivan las tres noches en equipo.' };
+export const LEVELS = [...LEVELS_W1.map((l) => ({ world: 1, ...l })), ...LEVELS_W2];
+export const WORLDS = [[1, 'MUNDO 1 · LA CIUDAD'], [2, 'MUNDO 2 · EL HOSPITAL']];
 
 export const SHOP_ITEMS = {
   ammo_pistol: { name: 'Balas de pistola', sub: '+24', price: 8, icon: 'icon_ammo' },
