@@ -285,3 +285,35 @@ button{ font-family:inherit; }
 /* modos en la selección */
 .diff-toggle.modes .diff{ padding:.9em 1.8em; }
 .level-cards.three{ grid-template-columns:repeat(3,1fr); width:75%; }
+
+/* foco con joystick */
+.padfocus{ outline:2px solid var(--accent) !important; outline-offset:3px; }
+.menu-list button.padfocus{ color:var(--ink); transform:translateX(6px); outline:none !important; }
+.menu-list button.padfocus .arrow{ opacity:1; }
+
+/* controles táctiles */
+.touch{ position:absolute; inset:0; z-index:6; pointer-events:none; }
+.tzone{ position:absolute; top:16%; bottom:0; pointer-events:auto; touch-action:none; }
+.tzone.left{ left:0; width:46%; }
+.tzone.right{ right:0; width:42%; }
+.stick{
+  position:absolute; width:92px; height:92px; margin:-46px 0 0 -46px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.28); background:rgba(0,0,0,.28); opacity:0; pointer-events:none; transition:opacity .12s;
+}
+.stick.on{ opacity:1; }
+.knob{ position:absolute; left:50%; top:50%; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.38); transform:translate(-50%,-50%); }
+.tbtns{ position:absolute; right:1.4%; top:50%; transform:translateY(-50%); display:grid; grid-template-columns:repeat(2,auto); gap:8px; pointer-events:auto; }
+.tbtns button{
+  width:52px; height:52px; border-radius:50%; background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.3);
+  color:var(--ink); font-size:8px; touch-action:none; padding:0;
+}
+.tbtns button.down{ background:rgba(255,184,77,.4); border-color:var(--accent); }
+body.touch-device #wrap{ cursor:default; }
+body.touch-device .topControls{ top:14%; bottom:auto; }
+.rotate{ display:none; }
+@media (orientation: portrait) and (pointer: coarse){
+  .rotate{
+    display:flex; position:fixed; inset:0; z-index:50; background:#050508; color:var(--ink);
+    align-items:center; justify-content:center; text-align:center; font-size:12px; line-height:2.4; padding:24px;
+  }
+}

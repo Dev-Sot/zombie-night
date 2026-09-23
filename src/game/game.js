@@ -2,7 +2,7 @@ import { GW, GH } from '../core/config.js';
 import { S, bus, net, rand, dist, clamp } from '../core/state.js';
 import { canvas, ctx, sx, sy } from '../core/render.js';
 import { pixelText, textWidth } from '../core/pixelfont.js';
-import { localControl, anyPressed, endFrame } from '../core/input.js';
+import { localControl, anyPressed, endFrame, pollGamepad, virt } from '../core/input.js';
 import { sfx, sfxHook, playMusic, ambient, stopAllAmbient, setIntensity, setVolumes, audioReady } from '../core/audio.js';
 import { save, recordWin, recordSurvival } from '../core/save.js';
 import { buildWorld, drawGround, worldDrawables, moveEntity } from './world.js';
@@ -567,7 +567,9 @@ function simulate(m) {
 
 function step() {
   const m = G.mode;
-  if (m === 'shop' && (localControl.pressed('KeyE') || localControl.pressed('Escape'))) resume();
+  if (virt.source === 'pad') ui.padNav(localControl);
+  // en la tienda A compra (no cierra); E del teclado o ESC/B cierran
+  if (m === 'shop' && ((localControl.pressed('KeyE') && !localControl.pressed('PadA')) || localControl.pressed('Escape'))) resume();
   if (m === 'paused' && localControl.pressed('Escape')) resume();
   // en un jugador los menús congelan la partida; en red la partida sigue
   if (m === 'results' || (!mp() && OVERLAY_MODES.has(m))) { endFrame(); return; }
@@ -626,7 +628,7 @@ let pendingKeys = new Set(), pendingWheel = 0;
 function clientStep(p) {
   const c = p.control, active = c === localControl;
   const m = localControl.mouse;
-  const aim = Math.atan2(m.y + S.cam.y - (p.y - 7), m.x + S.cam.x - p.x);
+  const aim = localControl.aim ?? Math.atan2(m.y + S.cam.y - (p.y - 7), m.x + S.cam.x - p.x);
   if (active) {
     for (const k of SEND_KEYS) if (localControl.pressed(k)) pendingKeys.add(k);
     pendingWheel += localControl.takeWheel();
@@ -759,6 +761,7 @@ let last = 0, acc = 0;
 function loop(now) {
   const dt = Math.min(100, now - (last || now));
   last = now;
+  pollGamepad();
   acc += dt * (S.timeScale || 1);
   let n = 0;
   while (acc >= STEP && n < 5) { step(); acc -= STEP; n++; }

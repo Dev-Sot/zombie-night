@@ -27,11 +27,30 @@ export function show(id) {
   $('banner').classList.remove('show');
   OVERLAYS.forEach((o) => $(o).classList.toggle('hidden', o !== id));
 }
+// navegación de menús con joystick: cruceta/stick mueve el foco, A acepta, B vuelve
+export function padNav(c) {
+  const ov = OVERLAYS.map($).find((o) => !o.classList.contains('hidden') && o.id !== 'loading');
+  if (!ov) return;
+  const items = [...ov.querySelectorAll('button, input')].filter((b) => !b.disabled && b.offsetParent !== null);
+  if (!items.length) return;
+  let i = items.indexOf(document.activeElement);
+  const move = (d) => {
+    document.querySelector('.padfocus')?.classList.remove('padfocus');
+    i = i < 0 ? 0 : (i + d + items.length) % items.length;
+    items[i].focus(); items[i].classList.add('padfocus');
+    sfx('uiHover');
+  };
+  if (c.pressed('PadDown') || c.pressed('PadRight')) move(1);
+  if (c.pressed('PadUp') || c.pressed('PadLeft')) move(-1);
+  if (c.pressed('PadA')) { if (i < 0) move(0); else items[i].click(); }
+  if (c.pressed('PadB')) ov.querySelector('[data-back], #btnResume, #btnShopClose, #btnCoopBack')?.click();
+}
 export function hideOverlays() { OVERLAYS.forEach((o) => $(o).classList.add('hidden')); }
 export function setHud(on) {
   $('hud').classList.toggle('hidden', !on);
   $('topControls').classList.toggle('hidden', !on);
   $('chat').classList.toggle('hidden', !on || !room.role);
+  $('touch').classList.toggle('hidden', !on || !document.body.classList.contains('touch-device'));
   if (!on) closeChat();
 }
 

@@ -1,5 +1,6 @@
 import { canvas } from './core/render.js';
 import { initInput } from './core/input.js';
+import { initTouch } from './core/touch.js';
 import { loadAll } from './core/assets.js';
 import { initAudio } from './core/audio.js';
 import { save } from './core/save.js';
@@ -8,6 +9,7 @@ import * as ui from './ui/ui.js';
 import * as game from './game/game.js';
 
 initInput(canvas);
+initTouch();
 
 // El navegador no deja arrancar audio sin un gesto del usuario: se activa
 // con el primer clic o tecla y a partir de ahí suena la música del menú.
