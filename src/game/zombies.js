@@ -129,7 +129,11 @@ export function updateZombies() {
 
     z.atkCd--; z.throwCd--;
     const reach = z.r + p.r + 4 * z.scale;
-    if (d < reach && z.atkCd <= 0) { z.state = 'attack'; z.anim = 0; z.hitDone = false; continue; }
+    if (d < reach && z.atkCd <= 0) {
+      z.state = 'attack'; z.anim = 0; z.hitDone = false;
+      if (Math.random() < 0.5) sfx('zattack', z.T.boss ? 1 : 0.7);
+      continue;
+    }
     if (z.T.ranged && z.throwCd <= 0 && d > 60 && d < 150 && lineClear(z.x, z.y - 8, p.x, p.y - 8)) {
       z.state = 'throw'; z.anim = 0; z.hitDone = false; continue;
     }

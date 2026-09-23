@@ -358,8 +358,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 let evBuf = [];
 const NO_FORWARD = new Set(['thunder', 'heartbeat', 'uiHover', 'uiClick']);
 net.rec = null;
-sfxHook.fn = (name, vol) => {
-  if (net.role === 'host' && net.capture && !NO_FORWARD.has(name)) evBuf.push(['sfx', [name, vol]]);
+sfxHook.fn = (name, vol, delay) => {
+  if (net.role === 'host' && net.capture && !NO_FORWARD.has(name)) evBuf.push(['sfx', [name, vol, delay]]);
 };
 for (const ev of ['banner', 'subtitle', 'lightsOn', 'objective', 'teamToast']) {
   bus.on(ev, (data) => { if (net.role === 'host' && G.mode !== 'menu') evBuf.push(['bus', [ev, data]]); });

@@ -94,7 +94,7 @@ export function applySnapshot(s, me) {
 }
 
 function replay(name, args) {
-  if (name === 'sfx') return sfx(args[0], args[1]);
+  if (name === 'sfx') return sfx(args[0], args[1], args[2] || 0);
   if (name === 'music') return playMusic(args[0]);
   if (name === 'shot') return ghostShot(...args);
   if (name === 'bus') return bus.emit(args[0], args[1]);

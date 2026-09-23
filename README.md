@@ -59,8 +59,9 @@ helicóptero. Cada noche tiene su clima, su historia y su forma de terminar.
   con techo y fachada, autos como cobertura y barriles que explotan en cadena.
 - **Iluminación dinámica**: linterna, faroles que titilan, fogonazos, bengalas
   y relámpagos.
-- **Audio 100% procedural**: efectos sintetizados y música adaptativa que se
-  intensifica cuando la horda se acerca.
+- **Sonido real**: disparos grabados de armas reales, zombies, recargas y
+  música que cambia entre exploración, combate y jefe (todo CC0), con
+  síntesis procedural de respaldo.
 
 ## Cómo jugar
 
@@ -148,6 +149,11 @@ Ver [ROADMAP.md](ROADMAP.md) y el historial en [CHANGELOG.md](CHANGELOG.md).
   Pack* por [TheLazyStone](https://thelazystone.itch.io/post-apocalypse-pixel-art-asset-pack).
 - Objetos recogibles: *Zombie Apocalypse Tileset* por
   [Ittai Manero](https://ittaimanero.itch.io/zombie-apocalypse-tileset).
+- Disparos: *The Free Firearm Sound Library* (Jaszczak, Nelson, Heras, Nanney) · CC0.
+- Zombies: *Zombies Sound Pack* (Summoning Wars) · CC0. Recargas: *Gun Reload Sounds* · CC0.
+- Música (CC0): *Chill Main Menu Music* de Augmentality, *Post Apocalyptic
+  Wastelands* de Juhani Junkala, *Determined Pursuit* de Emma_MA y *Dramatic
+  Boss Encounter* de cynicmusic, todas vía [OpenGameArt](https://opengameart.org).
 - Fuente: *Press Start 2P* por CodeMan38 (SIL Open Font License).
 - Conexiones en red: [PeerJS](https://peerjs.com) (MIT).
 

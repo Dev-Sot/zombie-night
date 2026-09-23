@@ -7,7 +7,10 @@ let ctx = null, master, musicBus, sfxBus, ambBus, noise = null;
 const settings = { music: 0.6, sfx: 0.8 };
 const buffers = {};
 
-const FILE_SFX = ['pistol', 'shotgun', 'rifle', 'explosion', 'thunder', 'groan', 'hurt'];
+const FILE_SFX = ['pistol', 'shotgun', 'rifle', 'reload', 'reloadRifle', 'pump', 'groan', 'zdie', 'zattack', 'explosion', 'thunder', 'hurt'];
+// volumen de cada grabación respecto de la síntesis (las grabaciones vienen normalizadas)
+const FILE_GAIN = { pistol: 0.5, shotgun: 0.75, rifle: 0.4, reload: 0.45, reloadRifle: 0.45, pump: 0.5, groan: 0.4, zdie: 0.45, zattack: 0.4 };
+const MUSIC_GAIN = { menu: 0.7, explore: 0.8, combat: 0.55, final: 0.6 };
 const FILE_MUSIC = ['menu', 'explore', 'combat', 'final'];
 
 export function audioReady() { return !!ctx; }
@@ -27,8 +30,9 @@ export function initAudio() {
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   // assets/audio/manifest.json lista los .ogg disponibles (así no se piden archivos que no existen)
   fetch('assets/audio/manifest.json').then((r) => (r.ok ? r.json() : [])).then((list) => {
+    // "groan_3" es una variante de "groan": se elige una al azar al sonar
     const known = new Set([...FILE_SFX, ...FILE_MUSIC.map((m) => 'music_' + m)]);
-    list.filter((n) => known.has(n)).forEach(tryLoad);
+    list.filter((n) => known.has(n.replace(/_\d+$/, ''))).forEach(tryLoad);
   }).catch(() => { /* sin manifiesto: todo sintetizado */ });
 }
 
@@ -36,7 +40,11 @@ async function tryLoad(name) {
   try {
     const res = await fetch(`assets/audio/${name}.ogg`);
     if (!res.ok) return;
-    buffers[name] = await ctx.decodeAudioData(await res.arrayBuffer());
+    const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+    const base = name.replace(/_\d+$/, '');
+    (buffers[base] ||= []).push(buf);
+    // si la pista pedida ya está sonando sintetizada, pasar al archivo
+    if (base === 'music_' + music.mood && !music.fileSrc) { const m = music.mood; music.mood = null; playMusic(m); }
   } catch { /* sin archivo: se usa la síntesis */ }
 }
 
@@ -126,17 +134,22 @@ const SFX = {
   land(t) { nz('lowpass', 800, t, 0.12, 0.15); },
   ping(t) { osc('sine', 1560, 0, t, 0.07, 0.12); osc('sine', 2080, 0, t + 0.07, 0.12, 0.1); },
   chat(t) { osc('triangle', 880, 0, t, 0.05, 0.07); },
+  reloadRifle(t) { SFX.reload(t); },
+  pump(t) { nz('bandpass', 1800, t, 0.06, 0.25, 2); nz('bandpass', 1200, t + 0.14, 0.07, 0.3, 2); },
+  zattack(t, v = 1) { SFX.groan(t, v * 1.2); },
 };
 
 export const sfxHook = { fn: null };
-export function sfx(name, vol = 1) {
-  sfxHook.fn?.(name, vol);
+export function sfx(name, vol = 1, delay = 0) {
+  sfxHook.fn?.(name, vol, delay);
   if (!ctx || vol <= 0.01) return;
-  const t = now();
-  if (buffers[name]) {
+  const t = now() + delay;
+  const list = buffers[name];
+  if (list?.length) {
     const s = ctx.createBufferSource(), g = ctx.createGain();
-    s.buffer = buffers[name]; g.gain.value = vol;
-    s.playbackRate.value = 0.95 + Math.random() * 0.1;
+    s.buffer = list[Math.floor(Math.random() * list.length)];
+    g.gain.value = vol * (FILE_GAIN[name] ?? 1);
+    s.playbackRate.value = 0.94 + Math.random() * 0.12;
     s.connect(g).connect(sfxBus); s.start(t);
     return;
   }
@@ -265,9 +278,13 @@ export function playMusic(mood) {
   if (!ctx || music.mood === mood) return;
   stopMusic();
   music.mood = mood;
-  if (buffers['music_' + mood]) {
-    const s = ctx.createBufferSource(); s.buffer = buffers['music_' + mood]; s.loop = true;
-    s.connect(musicBus); s.start(); music.fileSrc = s;
+  const file = buffers['music_' + mood]?.[0];
+  if (file) {
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = file; s.loop = true;
+    g.gain.setValueAtTime(0.0001, now());
+    g.gain.linearRampToValueAtTime(MUSIC_GAIN[mood] ?? 0.7, now() + 1.5);
+    s.connect(g).connect(musicBus); s.start(); music.fileSrc = s; music.fileGain = g;
     return;
   }
   music.step = 0; music.next = now() + 0.1;
@@ -278,8 +295,14 @@ export function playMusic(mood) {
 }
 export function stopMusic() {
   clearInterval(music.timer); music.timer = null;
-  try { music.fileSrc?.stop(); } catch { /* ya detenido */ }
-  music.fileSrc = null; music.mood = null;
+  if (music.fileSrc) {
+    // fundido de salida en vez de corte seco
+    const s = music.fileSrc, g = music.fileGain;
+    g.gain.cancelScheduledValues(now()); g.gain.setValueAtTime(g.gain.value, now());
+    g.gain.linearRampToValueAtTime(0.0001, now() + 1.2);
+    setTimeout(() => { try { s.stop(); } catch { /* ya detenido */ } }, 1300);
+  }
+  music.fileSrc = null; music.fileGain = null; music.mood = null;
 }
 export function setIntensity(v) { music.intensity = v; }
 export function currentMood() { return music.mood; }

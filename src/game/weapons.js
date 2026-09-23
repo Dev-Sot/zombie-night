@@ -55,6 +55,7 @@ export function tryFire(p) {
   light(m.x, m.y, 60, 'rgba(255,190,110,', 5);
   shake(w.shake);
   sfx(w.sfx);
+  if (p.inv.cur === 'shotgun') sfx('pump', 0.8, 0.32);
   // el ruido atrae a los zombies cercanos
   for (const z of S.zombies) if (!z.alert && dist(z.x, z.y, p.x, p.y) < 260) z.alert = true;
   if (inv.mag[p.inv.cur] === 0 && inv.ammo[w.ammo] > 0) setTimeout(() => startReload(p), 200);
@@ -87,7 +88,7 @@ export function startReload(p) {
   if (w.melee || p.reloadT > 0) return;
   if (p.inv.mag[p.inv.cur] >= w.mag || p.inv.ammo[w.ammo] <= 0) return;
   p.reloadT = w.reload;
-  sfx('reload');
+  sfx(p.inv.cur === 'rifle' ? 'reloadRifle' : 'reload');
 }
 
 export function finishReload(p) {
