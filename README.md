@@ -6,6 +6,8 @@
 
 **Supervivencia zombie top-down en pixel art, para jugar solo o con hasta 3 amigos online.**
 
+Un juego de [Dev-Sot](https://github.com/Dev-Sot).
+
 [![Jugar ahora](https://img.shields.io/badge/JUGAR_AHORA-zombie--night.vercel.app-e8483f?style=for-the-badge)](https://zombie-night.vercel.app)
 
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-e34f26?style=flat-square)
@@ -18,11 +20,13 @@
 
 ---
 
-Seis noches en dos mundos. En **la ciudad**, devolvé la electricidad al
-barrio, pedí ayuda por radio y resistí en la granja hasta que llegue el
-helicóptero. En **el hospital**, el helicóptero cae frente al San Rafael:
-curá al piloto, entrá a oscuras, devolvé la energía, rescatá a Lucía y
-escoltala hasta la ambulancia mientras el Paciente Cero los persigue.
+Nueve noches en tres mundos, con principio y final. En **la ciudad**,
+devolvé la electricidad al barrio, pedí ayuda por radio y resistí hasta que
+llegue el helicóptero. En **el hospital**, el helicóptero cae frente al San
+Rafael: entrá a oscuras, rescatá a Lucía y escapá del Paciente Cero. En
+**el puerto**, un barco sale al amanecer: mové un contenedor con la grúa,
+volvé a encender el faro en medio de la tormenta y resistí en el muelle
+mientras, por primera vez en toda la historia, sale el sol.
 
 <table>
   <tr>
@@ -50,12 +54,20 @@ escoltala hasta la ambulancia mientras el Paciente Cero los persigue.
     <td align="center"><b>Noche 5 · San Rafael</b><br>Adentro del hospital con Lucía</td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/noche8.png" alt="Noche 8: El faro"></td>
+    <td><img src="docs/screenshots/noche9.png" alt="Noche 9: Amanecer"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Noche 8 · El faro</b><br>La escollera en la tormenta</td>
+    <td align="center"><b>Noche 9 · Amanecer</b><br>El Coloso, Ramiro y el final</td>
+  </tr>
+  <tr>
     <td><img src="docs/screenshots/noche6.png" alt="Noche 6: La salida"></td>
-    <td><img src="docs/screenshots/niveles.png" alt="Expediente de noches"></td>
+    <td><img src="docs/screenshots/mundos.png" alt="Los tres mundos"></td>
   </tr>
   <tr>
     <td align="center"><b>Noche 6 · La salida</b><br>El Paciente Cero</td>
-    <td align="center"><b>El expediente</b><br>Dos mundos, historia y supervivencia</td>
+    <td align="center"><b>El expediente</b><br>Tres mundos, historia y supervivencia</td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/sobrevivientes.png" alt="Sobrevivientes"></td>
@@ -69,7 +81,7 @@ escoltala hasta la ambulancia mientras el Paciente Cero los persigue.
 
 ## Características
 
-- **Seis noches con historia en dos mundos**: objetivos por pasos (juntar,
+- **Nueve noches con historia en tres mundos** y un final: objetivos por pasos (juntar,
   llevar, activar, defender, rescatar, escoltar, jefe final) en vez de
   oleadas infinitas.
 - **Interiores**: edificios a los que se entra (el techo desaparece),
@@ -102,7 +114,10 @@ escoltala hasta la ambulancia mientras el Paciente Cero los persigue.
   vienen todas de entrada.
 - **Diez tipos de zombie**: caminante, enfermero, corredor, lanzador de
   hachas, bruto, tóxico, **gritón** (llama a la horda), **hinchado** (revienta
-  en gas tóxico) y dos jefes: el Gigante y el **Paciente Cero**. Rodean los edificios buscando el camino más corto.
+  en gas tóxico) y tres jefes: el Gigante, el **Paciente Cero** y **El Coloso**.
+- **Escenarios con agua, grúas y faros**: el puerto tiene mar que no se puede
+  cruzar, un faro cuyo haz barre el mapa, una grúa que abre el camino y un
+  amanecer que va levantando la oscuridad durante la última pelea. Rodean los edificios buscando el camino más corto.
 - **Mapas en perspectiva 3/4**: calles, veredas, cruces peatonales, edificios
   con techo y fachada, autos como cobertura y barriles que explotan en cadena.
 - **Iluminación dinámica**: linterna, faroles que titilan, fogonazos, bengalas
@@ -201,6 +216,7 @@ Ver [ROADMAP.md](ROADMAP.md) y el historial en [CHANGELOG.md](CHANGELOG.md).
 
 ## Créditos
 
+- Dirección, diseño y desarrollo: [Dev-Sot](https://github.com/Dev-Sot).
 - Personajes, zombies, armas y escenarios: *Post-Apocalypse Pixel Art Asset
   Pack* por [TheLazyStone](https://thelazystone.itch.io/post-apocalypse-pixel-art-asset-pack).
 - Objetos recogibles: *Zombie Apocalypse Tileset* por

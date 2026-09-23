@@ -6,7 +6,7 @@ import { burst, float } from './fx.js';
 import { WEAPONS, ORDER } from './weapons.js';
 
 // kind: ammo | bandage | medkit | weapon | item (objetivo)
-const SPRITES = { ammo: 'pickups/ammo', bandage: 'pickups/bandage', medkit: 'pickups/medkit', fuel: 'pickups/fuel', radio: 'pickups/radio', keycard: 'pickups/keycard', surgkit: 'pickups/surgkit' };
+const SPRITES = { ammo: 'pickups/ammo', bandage: 'pickups/bandage', medkit: 'pickups/medkit', fuel: 'pickups/fuel', radio: 'pickups/radio', keycard: 'pickups/keycard', surgkit: 'pickups/surgkit', key: 'pickups/key' };
 const AMMO_GIVE = { pistol: 12, shotgun: 6, rifle: 30 };
 
 export function addPickup(kind, x, y, extra = {}) {

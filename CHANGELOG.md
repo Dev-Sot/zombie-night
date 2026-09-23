@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8 — El Puerto (final de la historia)
+- Mundo 3 con tres noches: Los muelles, El faro y Amanecer; epílogo y "Fin".
+- Agua que no se puede cruzar, grúa que mueve un contenedor, faro con haz
+  giratorio, amanecer progresivo y el barco La Esperanza.
+- Ramiro vuelve en el helicóptero y dispara desde el aire; nuevo jefe final,
+  El Coloso, que golpea el piso.
+- Sobrevivientes más distintos: gorra de policía, pelo largo, barba y
+  bufanda además de los cascos.
+- Selección por mundos: primero el mundo y después la noche (historia,
+  supervivencia y online).
+- Sala online rediseñada en dos columnas.
+- Enlace al perfil de GitHub en el menú y en los créditos.
+
 ## v0.7 — Sobrevivientes
 - Cinco sobrevivientes jugables con habilidad propia (Tomás, Vera, Hugo,
   Nina y Bruno); en el online cada jugador elige el suyo y no se repiten.

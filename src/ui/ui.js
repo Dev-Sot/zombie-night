@@ -16,7 +16,8 @@ let H = {};
 let backTo = 'mainMenu';
 let thumbs = {};
 let levelMode = 'story';
-let levelWorld = 1;
+let levelWorld = 0;   // 0 = mostrando los mundos
+let lobbyWorld = 1;
 export function setThumbs(t) { thumbs = t; }
 
 // las fuentes de la interfaz traen tildes y Ñ: solo hace falta escapar el HTML
@@ -127,8 +128,8 @@ export function initUI(handlers) {
   document.querySelectorAll('.menu-list button').forEach((b) => b.addEventListener('click', () => {
     const act = b.dataset.act;
     if (act === 'continue') H.onPlayLevel(save.last || 1);
-    if (act === 'levels') { levelMode = 'story'; levelWorld = (save.last || 1) > 3 ? 2 : 1; renderLevels(); show('levelMenu'); }
-    if (act === 'survival') { levelMode = 'survival'; renderLevels(); show('levelMenu'); }
+    if (act === 'levels') { levelMode = 'story'; levelWorld = 0; renderLevels(); show('levelMenu'); }
+    if (act === 'survival') { levelMode = 'survival'; levelWorld = 0; renderLevels(); show('levelMenu'); }
     if (act === 'settings') { backTo = 'mainMenu'; show('settingsMenu'); }
     if (act === 'howto') show('howtoMenu');
     if (act === 'credits') show('creditsMenu');
@@ -136,6 +137,8 @@ export function initUI(handlers) {
     if (act === 'chars') { backTo = 'mainMenu'; renderChars(); show('charMenu'); }
   }));
   $('survivorStrip').addEventListener('click', () => { renderChars(); show('charMenu'); });
+  $('worldBack').addEventListener('click', () => { levelWorld = 0; renderLevels(); });
+  document.querySelectorAll('a[target=_blank]').forEach((a) => a.addEventListener('pointerdown', (e) => e.stopPropagation()));
   updateStrip();
   startVhsClock();
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => show(backTo === 'pauseMenu' && b.closest('#settingsMenu') ? 'pauseMenu' : 'mainMenu')));
@@ -229,16 +232,40 @@ function renderSurvivalCards(wrap) {
   }
 }
 
+// carpetas de los mundos: primero se elige el mundo y después la noche
+const worldLevels = (w) => LEVELS.filter((q) => q.world === w);
+function renderWorlds(wrap) {
+  for (const W of WORLDS) {
+    const lv = worldLevels(W.id);
+    const first = lv[0];
+    const locked = !first || first.id > save.unlocked;
+    const done = lv.filter((q) => q.id < save.unlocked).length;
+    const c = document.createElement('button');
+    c.className = `card world${locked ? ' locked' : ''}`;
+    c.innerHTML = `
+      <div class="photo" style="--c:${first && thumbs[W.cover] ? `url(${thumbs[W.cover]}) center/cover` : '#111'}"></div>
+      <div class="num">mundo ${W.id} · ${W.tag}</div>
+      <div class="cap">${W.name}</div>
+      <div class="desc">${W.desc}</div>
+      <div class="lockmsg${locked ? '' : ' go'}">${!first ? 'próximamente' : locked ? 'terminá el mundo anterior' : levelMode === 'survival' ? `${lv.length} mapas` : `${Math.min(done, lv.length)} de ${lv.length} noches superadas`}</div>`;
+    c.addEventListener('mouseenter', () => sfx('uiHover'));
+    if (!locked) c.addEventListener('click', () => { sfx('uiClick'); levelWorld = W.id; renderLevels(); });
+    wrap.appendChild(c);
+  }
+}
+
 function renderLevels() {
   const wrap = $('levelCards');
   renderToggle($('modeToggle'), MODES, levelMode, (id) => { levelMode = id; renderLevels(); });
-  $('levelTitle').textContent = levelMode === 'survival' ? 'Registro · Supervivencia' : 'Expediente · Historia';
-  renderToggle($('worldToggle'), WORLDS, levelWorld, (id) => { levelWorld = id; renderLevels(); });
+  const W = WORLDS.find((q) => q.id === levelWorld);
+  $('levelTitle').textContent = W ? `Mundo ${W.id} · ${W.name}` : levelMode === 'survival' ? 'Registro · Supervivencia' : 'Expediente · Historia';
+  $('worldBack').classList.toggle('hidden', !W);
   wrap.classList.add('three');
   renderDiffToggle($('diffToggle'), save.diff, (id) => { save.diff = id; persist(); renderLevels(); });
   $('diffDesc').textContent = DIFFS[save.diff].desc;
   $('levelMenu').classList.toggle('nightmare', save.diff === 'pesadilla');
   wrap.innerHTML = '';
+  if (!W) { renderWorlds(wrap); return; }
   if (levelMode === 'survival') { renderSurvivalCards(wrap); return; }
   LEVELS.filter((q) => q.world === levelWorld).forEach((L) => {
     const locked = L.id > save.unlocked;
@@ -564,7 +591,7 @@ export function renderLobby() {
     d.className = `pslot${p ? '' : ' empty'}`;
     d.style.setProperty('--pc', TINT_CSS[i]);
     d.innerHTML = p
-      ? `${sprite(p.char || 'tomas', 2.6)}<span class="who"><span class="pn">${esc(p.name)}</span><span class="pc">${charById(p.char).name} · ${charById(p.char).role}</span>${i === 0 ? '<span class="ptag">anfitrión</span>' : ''}${i === room.me ? '<span class="ptag you">vos</span>' : ''}</span>`
+      ? `${sprite(p.char || 'tomas', 3)}<span class="who"><span class="pn">${esc(p.name)}</span><span class="pc">${charById(p.char).name} · ${charById(p.char).role}</span>${i === 0 ? '<span class="ptag">anfitrión</span>' : ''}${i === room.me ? '<span class="ptag you">vos</span>' : ''}</span>`
       : '<span class="who"><span class="pn">esperando señal...</span></span>';
     slots.appendChild(d);
   }
@@ -582,9 +609,11 @@ export function renderLobby() {
     pick.appendChild(b);
   }
   const host = room.role === 'host';
+  if (LEVELS.find((q) => q.id === room.level)?.world !== lobbyWorld && !host) lobbyWorld = LEVELS.find((q) => q.id === room.level)?.world || 1;
+  renderToggle($('lobbyWorlds'), WORLDS.filter((w) => worldLevels(w.id).length).map((w) => [w.id, `mundo ${w.id} · ${w.name.toLowerCase()}`]), lobbyWorld, (id) => { lobbyWorld = id; renderLobby(); });
   const lv = $('lobbyLevels');
   lv.innerHTML = '';
-  for (const L of LEVELS) {
+  for (const L of worldLevels(lobbyWorld)) {
     const b = document.createElement('button');
     b.className = `lvl${room.level === L.id ? ' on' : ''}`;
     b.disabled = !host;

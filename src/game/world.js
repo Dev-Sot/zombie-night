@@ -71,8 +71,9 @@ export function buildWorld(L) {
     W: L.W, H: L.H, base: L.ground, baseFilter: L.groundFilter,
     areas: L.areas || [], lines: L.lines || [], zebras: L.zebras || [],
     solids: [], props: [], buildings: [], lamps: [], hash: new Map(), R,
-    walls: [], doors: [], roofs: (L.roofs || []).map((r) => ({ ...r, a: 1 })),
+    walls: [], doors: [], roofs: (L.roofs || []).map((r) => ({ ...r, a: 1 })), water: L.water || [],
   };
+  for (const w of W.water) W.solids.push({ x: w.x, y: w.y, w: w.w, h: w.h, bullets: false, ref: { kind: 'water' } });
 
   for (const b of L.buildings || []) addBuilding(W, b, R);
   for (const w of L.walls || []) addWall(W, w);
@@ -341,6 +342,7 @@ export function drawGround() {
     if (z.dir === 'v') { for (let x = z.x; x < z.x + z.w; x += 8) ctx.fillRect(sx(x), sy(z.y), 4, z.h); }
     else { for (let y = z.y; y < z.y + z.h; y += 8) ctx.fillRect(sx(z.x), sy(y), z.w, 4); }
   }
+  drawWater(W);
   // sombras suaves al sur/este de edificios y vehículos (da volumen)
   ctx.fillStyle = 'rgba(0,0,0,0.32)';
   for (const b of W.buildings) {
@@ -353,6 +355,37 @@ export function drawGround() {
     ctx.beginPath(); ctx.ellipse(sx(p.x + p.w / 2 + 2), sy(p.y + p.h - 2), p.w / 2 + 1, 4, 0, 0, Math.PI * 2); ctx.fill();
   }
   for (const p of W.props) if (p.flat && onScreen(p.x, p.y)) sprite(`env/${p.k}`, p.x, p.y);
+}
+
+// agua procedural: fondo oscuro, reflejos que se mueven y espuma en la orilla
+function drawWater(W) {
+  for (const w of W.water) {
+    if (!onScreen(w.x + w.w / 2, w.y + w.h / 2, Math.max(w.w, w.h))) continue;
+    rect(w.x, w.y, w.w, w.h, '#0b1822');
+    // reflejo del amanecer sobre el agua
+    if (S.dawn > 0) {
+      const g = ctx.createLinearGradient(0, sy(w.y), 0, sy(w.y + w.h));
+      g.addColorStop(0, `rgba(255,150,90,${0.35 * S.dawn})`); g.addColorStop(1, `rgba(120,90,110,${0.12 * S.dawn})`);
+      ctx.fillStyle = g; ctx.fillRect(sx(w.x), sy(w.y), w.w, w.h);
+    }
+    const x0 = Math.max(w.x, S.cam.x - 8), x1 = Math.min(w.x + w.w, S.cam.x + GW + 8);
+    const y0 = Math.max(w.y, S.cam.y - 8), y1 = Math.min(w.y + w.h, S.cam.y + GH + 8);
+    ctx.fillStyle = 'rgba(90,130,150,0.22)';
+    for (let y = Math.ceil(y0 / 7) * 7; y < y1; y += 7) {
+      const off = ((S.t * 0.25 + y * 3.7) % 23);
+      for (let x = Math.floor(x0 / 23) * 23 - 23 + off; x < x1; x += 23) {
+        if (x < w.x || x + 6 > w.x + w.w) continue;
+        ctx.fillRect(sx(x), sy(y + Math.sin((S.t + x) * 0.05)), 6, 1);
+      }
+    }
+    // espuma en los bordes que dan a tierra
+    ctx.fillStyle = `rgba(200,220,230,${0.25 + Math.sin(S.t * 0.08) * 0.08})`;
+    for (const [ex, ey, ew, eh] of [[w.x, w.y, w.w, 1], [w.x, w.y + w.h - 1, w.w, 1], [w.x, w.y, 1, w.h], [w.x + w.w - 1, w.y, 1, w.h]]) {
+      const cx = ex + ew / 2, cy = ey + eh / 2;
+      const land = !W.water.some((o) => o !== w && cx >= o.x - 2 && cx <= o.x + o.w + 2 && cy >= o.y - 2 && cy <= o.y + o.h + 2);
+      if (land && ex > 0 && ey > 0 && ex + ew < W.W && ey + eh < W.H) ctx.fillRect(sx(ex), sy(ey), ew, eh);
+    }
+  }
 }
 
 function drawRoof(b) {
@@ -420,7 +453,11 @@ function drawWall(w) {
 
 function drawDoor(D) {
   const top = D.y + D.h - WF;
-  rect(D.x, D.y - WF, D.w, D.h, CAP);
+  if (D.style !== 'container') rect(D.x, D.y - WF, D.w, D.h, CAP);
+  if (D.style === 'container') {
+    if (!D.open) sprite(`env/${D.key || 'container_red'}`, D.x, D.y + D.h - 24);
+    return;
+  }
   if (D.open) {
     rect(D.x, top, D.w, WF, 'rgba(10,8,14,0.55)');
     rect(D.x, top, 1, WF, '#2c1d35'); rect(D.x + D.w - 1, top, 1, WF, '#2c1d35');

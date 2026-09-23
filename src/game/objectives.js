@@ -9,6 +9,7 @@ import { survivalText, survivalTarget } from './survival.js';
 import { npc } from './npc.js';
 import { bark, anyone } from './barks.js';
 import { openDoor, doorLocked } from './world.js';
+import { damageZombie } from './zombies.js';
 import { frame } from '../core/render.js';
 
 // Cada nivel define una lista de pasos; se completan en orden.
@@ -73,6 +74,32 @@ function runEvents(ev) {
   }
   if (ev.follow) { const n = npc(ev.follow); if (n) n.follow = true; }
   if (ev.exitCar) { const m = marker(ev.exitCar); if (m) { m.state = 1; S.exitCar = m; } }
+  if (ev.open) { const D = S.world.doors.find((d) => d.id === ev.open); if (D) { openDoor(S.world, D); shake(5); sfx('explosion', 0.4); } }
+  if (ev.gunship) { S.gunship = { x: S.players[0]?.x || 0, y: (S.players[0]?.y || 0) - 200, t: 0, cd: 60 }; ambient('heli', true); }
+}
+
+// Ramiro en el helicóptero: gira sobre el equipo y dispara a los zombies cercanos
+function updateGunship() {
+  const g = S.gunship;
+  if (!g) return;
+  g.t++;
+  const alive = S.players.filter((p) => !p.dead && !p.boarded);
+  const cx = alive.reduce((a, p) => a + p.x, 0) / (alive.length || 1), cy = alive.reduce((a, p) => a + p.y, 0) / (alive.length || 1);
+  const tx = cx + Math.cos(g.t * 0.012) * 110, ty = cy - 40 + Math.sin(g.t * 0.012) * 70;
+  g.x += (tx - g.x) * 0.02; g.y += (ty - g.y) * 0.02;
+  if (--g.cd > 0) return;
+  let best = null, bd = 150;
+  for (const z of S.zombies) {
+    if (z.state === 'dying' || z.state === 'dead') continue;
+    const d = dist(z.x, z.y, g.x, g.y + 30);
+    if (d < bd) { bd = d; best = z; }
+  }
+  if (!best) { g.cd = 20; return; }
+  g.cd = 26;
+  sfx('rifle', 0.7);
+  light(best.x, best.y - 6, 40, 'rgba(255,200,120,', 6);
+  burst(best.x, best.y - 8, 6, { color: '#ffe08a', type: 'spark', lifeMul: 0.4, speed: 2 });
+  damageZombie(best, 55, Math.atan2(best.y - g.y, best.x - g.x), 2, null);
 }
 
 function finishStep() {
@@ -131,10 +158,13 @@ export function updateObjectives() {
     O.count++;
     if (S.t % 30 === 0) bus.emit('objective', st);
     if (st.at) for (const [sec, ev] of Object.entries(st.at)) if (O.count === Number(sec) * 60) runEvents(ev);
+    if (st.dawn) S.dawn = Math.max(S.dawn || 0, O.count / O.total * st.dawn);
     if (O.count >= O.total) finishStep();
   }
+  updateGunship();
   // vehículo de la escapa final alejándose
-  if (S.exitCar?.leaving) { const m = S.exitCar; m.vx = Math.min(3.2, (m.vx || 0) + 0.035); m.x += m.vx; }
+  // el barco zarpa despacio (se ve durante todo el epílogo); la ambulancia arranca rápido
+  if (S.exitCar?.leaving) { const m = S.exitCar, top = m.type === 'ship' ? 0.32 : 3.2; m.vx = Math.min(top, (m.vx || 0) + (m.type === 'ship' ? 0.004 : 0.035)); m.x += m.vx; }
   // helicóptero de rescate acercándose
   if (S.heli) {
     const h = S.heli;
@@ -205,6 +235,7 @@ export function markerDrawables() {
     out.push({ y: m.y, draw: () => drawMarker(m) });
   }
   if (S.heli) out.push({ y: 1e9, draw: drawHeli });
+  if (S.gunship) out.push({ y: 1e9 + 1, draw: drawGunship });
   return out;
 }
 
@@ -259,6 +290,47 @@ function drawMarker(m) {
       ctx.fillStyle = on ? '#ff4040' : '#401010'; ctx.fillRect(X - 5, Y - 26, 3, 2);
       ctx.fillStyle = on ? '#202848' : '#5078ff'; ctx.fillRect(X + 3, Y - 26, 3, 2);
     }
+  } else if (m.type === 'crane') {
+    // grúa portuaria: torre reticulada, cabina y pluma sobre el muelle
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 7, Y - 118, 14, 118);
+    ctx.fillStyle = '#c98f1e'; ctx.fillRect(X - 6, Y - 117, 12, 116);
+    ctx.fillStyle = '#8a5f12'; for (let i = 0; i < 12; i++) { ctx.fillRect(X - 6, Y - 112 + i * 9, 12, 1); ctx.fillRect(X - 6 + (i % 2) * 10, Y - 112 + i * 9, 2, 9); }
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 70, Y - 124, 120, 7);
+    ctx.fillStyle = '#e0a52a'; ctx.fillRect(X - 69, Y - 123, 118, 5);
+    ctx.fillStyle = '#39413a'; ctx.fillRect(X + 4, Y - 132, 16, 12);
+    ctx.fillStyle = m.state ? '#ffcf6b' : '#1a1d1f'; ctx.fillRect(X + 7, Y - 129, 10, 5);
+    const hx = X - 56 + (m.state ? Math.min(40, (S.t % 400) / 6) : 0);
+    ctx.fillStyle = '#1a1d1f'; ctx.fillRect(hx, Y - 118, 1, 40); ctx.fillRect(hx - 3, Y - 78, 7, 3);
+    ctx.fillStyle = m.state ? (blink ? '#7cff8f' : '#2f6f3a') : (blink ? '#ff4040' : '#5a1515'); ctx.fillRect(X - 2, Y - 10, 4, 3);
+  } else if (m.type === 'lighthouse') {
+    // faro: torre a franjas blancas y rojas con la linterna arriba
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(X, Y, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 8; i++) {
+      const w = 22 - i, y0 = Y - 12 - i * 13;
+      ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - w / 2 - 1, y0 - 13, w + 2, 14);
+      ctx.fillStyle = i % 2 ? '#b33a3a' : '#d8d0c2'; ctx.fillRect(X - w / 2, y0 - 12, w, 13);
+    }
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 10, Y - 128, 20, 16);
+    ctx.fillStyle = m.state ? (Math.floor(S.t / 6) % 2 ? '#fff6c8' : '#ffe08a') : '#3a3a44'; ctx.fillRect(X - 8, Y - 126, 16, 11);
+    ctx.fillStyle = '#39413a'; ctx.fillRect(X - 12, Y - 132, 24, 5);
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 3, Y - 16, 6, 12);
+  } else if (m.type === 'ship') {
+    // La Esperanza: casco, cubierta, puente iluminado y la pasarela
+    const L0 = X - 110, T0 = Y - 64;
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(L0 - 1, T0 + 20, 222, 46);
+    ctx.fillStyle = '#4a1f1f'; ctx.fillRect(L0, T0 + 21, 220, 44);
+    ctx.fillStyle = '#6b2a24'; ctx.fillRect(L0, T0 + 21, 220, 5);
+    ctx.fillStyle = '#d8d0c2'; ctx.fillRect(L0, T0 + 50, 220, 3);
+    ctx.fillStyle = '#5e5d6b'; ctx.fillRect(L0 + 6, T0 + 12, 208, 10);
+    ctx.fillStyle = '#2c1d35'; ctx.fillRect(L0 + 140, T0 - 22, 54, 36);
+    ctx.fillStyle = '#cccacb'; ctx.fillRect(L0 + 141, T0 - 21, 52, 34);
+    ctx.fillStyle = '#ffcf6b'; for (let i = 0; i < 5; i++) ctx.fillRect(L0 + 145 + i * 10, T0 - 14, 6, 4);
+    ctx.fillStyle = '#3a3a44'; ctx.fillRect(L0 + 160, T0 - 40, 8, 19);
+    ctx.fillStyle = '#7a1a14'; for (let i = 0; i < 6; i++) ctx.fillRect(L0 + 20 + i * 18, T0 + 4, 14, 9);
+    pixelText(ctx, 'LA ESPERANZA', L0 + 20, T0 + 34, '#d8d0c2');
+    ctx.fillStyle = Math.floor(S.t / 18) % 2 ? '#ff4040' : '#401010'; ctx.fillRect(L0 + 2, T0 + 14, 3, 3);
+    ctx.fillStyle = Math.floor(S.t / 18) % 2 ? '#40ff60' : '#104018'; ctx.fillRect(L0 + 215, T0 + 14, 3, 3);
+    if (m.state && !m.leaving) { ctx.fillStyle = '#704f48'; ctx.fillRect(X - 7, T0 + 64, 14, 22); ctx.fillStyle = '#5c393d'; for (let i = 0; i < 5; i++) ctx.fillRect(X - 7, T0 + 66 + i * 4, 14, 1); }
   } else if (m.type === 'flare') {
     ctx.fillStyle = '#3a3a3a'; ctx.fillRect(X - 1, Y - 6, 3, 6);
     if (m.state) {
@@ -266,6 +338,21 @@ function drawMarker(m) {
       if (S.t % 4 === 0) burst(m.x, m.y - 8, 1, { color: '#6a3a3a', type: 'smoke', lifeMul: 2.2, grav: -0.04, lift: 1, speed: 0.3, size: 2 });
     }
   }
+}
+
+function drawGunship() {
+  const g = S.gunship, X = sx(g.x), Y = sy(g.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(X + 22, Y + 64, 24, 9, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2c1d35'; ctx.fillRect(X - 17, Y - 10, 34, 18); ctx.fillRect(X + 13, Y - 5, 26, 7);
+  ctx.fillStyle = '#39413a'; ctx.fillRect(X - 16, Y - 9, 32, 16); ctx.fillRect(X + 14, Y - 4, 24, 5);
+  ctx.fillStyle = '#6a8fa8'; ctx.fillRect(X - 16, Y - 7, 9, 11);
+  ctx.fillStyle = Math.floor(S.t / 10) % 2 ? '#ff4040' : '#401010'; ctx.fillRect(X + 36, Y - 6, 3, 3);
+  ctx.strokeStyle = 'rgba(200,210,220,0.55)'; ctx.lineWidth = 1;
+  const a = S.t * 0.6;
+  ctx.beginPath(); ctx.moveTo(X - Math.cos(a) * 34, Y - 12 - Math.sin(a) * 8); ctx.lineTo(X + Math.cos(a) * 34, Y - 12 + Math.sin(a) * 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(X - Math.sin(a) * 34, Y - 12 + Math.cos(a) * 8); ctx.lineTo(X + Math.sin(a) * 34, Y - 12 - Math.cos(a) * 8); ctx.stroke();
+  pixelText(ctx, 'RAMIRO', X - textWidth('RAMIRO') / 2, Y - 24, '#e8e2c8');
 }
 
 function drawHeli() {
@@ -294,8 +381,15 @@ export function markerLights() {
     if (m.type === 'helipad' && m.state) out.push({ x: m.x, y: m.y, r: 80, a: 0.6, color: 'rgba(255,207,107,' });
     if (m.type === 'wreck') out.push({ x: m.x, y: m.y - 10, r: 105 + Math.sin(S.t * 0.3) * 8 + rand(-4, 4), a: 0.9, color: 'rgba(255,120,40,' });
     if (m.type === 'breaker') out.push({ x: m.x, y: m.y - 14, r: m.state ? 40 : 22, a: 0.6, color: m.state ? 'rgba(124,255,143,' : 'rgba(255,60,60,' });
+    if (m.type === 'lighthouse' && m.state) {
+      out.push({ x: m.x, y: m.y - 120, r: 70, a: 0.95, color: 'rgba(255,240,190,' });
+      out.push({ beam: true, x: m.x, y: m.y - 120, angle: S.t * 0.02, len: 420, half: 0.22 });
+    }
+    if (m.type === 'crane' && m.state) out.push({ x: m.x + 10, y: m.y - 126, r: 40, a: 0.7, color: 'rgba(255,207,107,' });
+    if (m.type === 'ship') out.push({ x: m.x + 57, y: m.y - 76, r: 90, a: 0.8, color: 'rgba(255,207,107,' }, { x: m.x, y: m.y - 30, r: 60, a: 0.6 });
     if (m.type === 'ambulance') out.push({ x: m.x, y: m.y - 14, r: m.state ? 70 : 34, a: 0.8, color: m.state && Math.floor(S.t / 8) % 2 ? 'rgba(80,120,255,' : 'rgba(255,60,60,' });
   }
   if (S.heli) out.push({ x: S.heli.x, y: S.heli.y + 10, r: 70 + rand(-3, 3), a: 0.9, color: 'rgba(230,240,255,' });
+  if (S.gunship) out.push({ x: S.gunship.x, y: S.gunship.y + 60, r: 62, a: 0.85, color: 'rgba(230,240,255,' });
   return out;
 }

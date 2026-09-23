@@ -2,6 +2,7 @@
 // Edificios en perspectiva 3/4: (x,y) es la esquina del techo, h incluye la
 // fachada de 30px de abajo, y la puerta siempre va en la fachada.
 import { LEVELS_W2 } from './levels_w2.js';
+import { LEVELS_W3 } from './levels_w3.js';
 
 const road = (x, y, w, h) => ({ tile: 'ground_asphalt', x, y, w, h, road: true });
 const walk = (x, y, w, h) => ({ tile: 'ground_sidewalk', x, y, w, h, road: true, edge: 'rgba(0,0,0,0.35)' });
@@ -218,8 +219,12 @@ const LEVELS_W1 = [
   },
 ];
 
-export const LEVELS = [...LEVELS_W1.map((l) => ({ world: 1, ...l })), ...LEVELS_W2];
-export const WORLDS = [[1, 'MUNDO 1 · LA CIUDAD'], [2, 'MUNDO 2 · EL HOSPITAL']];
+export const LEVELS = [...LEVELS_W1.map((l) => ({ world: 1, ...l })), ...LEVELS_W2, ...LEVELS_W3];
+export const WORLDS = [
+  { id: 1, cover: 1, name: 'La ciudad', tag: 'barrio · centro · afueras', desc: 'La noche en que se apagó todo. Luz, una radio y un helicóptero.' },
+  { id: 2, cover: 5, name: 'El hospital', tag: 'parque · hospital · estacionamiento', desc: 'El helicóptero cae frente al San Rafael. Alguien pide ayuda adentro.' },
+  { id: 3, cover: 8, name: 'El puerto', tag: 'muelles · faro · amanecer', desc: 'Dicen que todavía sale un barco. La última noche.' },
+];
 
 export const SHOP_ITEMS = {
   ammo_pistol: { name: 'Balas de pistola', sub: '+24', price: 8, icon: 'icon_ammo' },

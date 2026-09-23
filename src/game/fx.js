@@ -230,7 +230,8 @@ function hole(x, y, r, a = 1) {
 
 export function drawLighting(extra) {
   const L = S.level, W = S.world;
-  const dark = Math.min(0.97, (L.darkness ?? 0.9) + (S.diff?.dark || 0)) * (1 - weather.flash * 0.85);
+  // el amanecer (Noche 9) va levantando la oscuridad
+  const dark = Math.min(0.97, (L.darkness ?? 0.9) + (S.diff?.dark || 0)) * (1 - weather.flash * 0.85) * (1 - 0.72 * (S.dawn || 0));
   lctx.globalCompositeOperation = 'source-over';
   lctx.clearRect(0, 0, GW, GH);
   lctx.fillStyle = `rgba(3,5,12,${dark})`;
@@ -251,7 +252,17 @@ export function drawLighting(extra) {
   }
   for (const l of W.lamps) if (l.on && onScreen(l.x, l.y, l.r)) hole(sx(l.x), sy(l.y - 8), l.r, l.emergency ? 0.55 : 0.85);
   for (const l of S.lights) if (onScreen(l.x, l.y, l.r)) hole(sx(l.x), sy(l.y), l.r * (0.6 + 0.4 * l.life / l.max), Math.min(1, l.life / l.max * 1.5));
-  extra?.forEach((e) => { if (onScreen(e.x, e.y, e.r)) hole(sx(e.x), sy(e.y), e.r, e.a ?? 0.8); });
+  extra?.forEach((e) => {
+    if (e.beam) {
+      // cono de luz (faro, reflector del helicóptero)
+      const X = sx(e.x), Y = sy(e.y);
+      lctx.save(); lctx.translate(X, Y); lctx.rotate(e.angle);
+      const g = lctx.createRadialGradient(0, 0, 4, 0, 0, e.len);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      lctx.fillStyle = g; lctx.beginPath(); lctx.moveTo(0, 0); lctx.arc(0, 0, e.len, -e.half, e.half); lctx.closePath(); lctx.fill();
+      lctx.restore();
+    } else if (onScreen(e.x, e.y, e.r)) hole(sx(e.x), sy(e.y), e.r, e.a ?? 0.8);
+  });
   lctx.globalCompositeOperation = 'source-over';
   ctx.drawImage(lightCanvas, 0, 0);
 
@@ -274,13 +285,14 @@ export function drawLighting(extra) {
     ctx.fillStyle = g; ctx.fillRect(X - l.r, Y - l.r, l.r * 2, l.r * 2);
   }
   extra?.forEach((e) => {
-    if (!e.color || !onScreen(e.x, e.y, e.r)) return;
+    if (e.beam || !e.color || !onScreen(e.x, e.y, e.r)) return;
     const X = sx(e.x), Y = sy(e.y);
     const g = ctx.createRadialGradient(X, Y, 0, X, Y, e.r * 0.8);
     g.addColorStop(0, `${e.color}0.25)`); g.addColorStop(1, `${e.color}0)`);
     ctx.fillStyle = g; ctx.fillRect(X - e.r, Y - e.r, e.r * 2, e.r * 2);
   });
   if (weather.flash > 0.05) { ctx.fillStyle = `rgba(200,215,255,${weather.flash * 0.25})`; ctx.fillRect(0, 0, GW, GH); }
+  if (S.dawn > 0) { ctx.fillStyle = `rgba(255,150,90,${0.06 * S.dawn})`; ctx.fillRect(0, 0, GW, GH); }
   ctx.restore();
 }
 

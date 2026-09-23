@@ -221,6 +221,11 @@ rect(kit, 5, 3, 2, 5, 'r3'); rect(kit, 3, 5, 6, 1, 'r3')
 rect(kit, 4, 0, 4, 2, OL)
 save(kit, 'surgkit', PICK)
 
+key = img(12, 7)
+rect(key, 0, 0, 6, 7, OL); rect(key, 1, 1, 4, 5, '#c9a23a'); rect(key, 2, 2, 2, 3, OL)
+rect(key, 5, 2, 7, 3, OL); rect(key, 5, 3, 6, 1, '#e0bc52'); rect(key, 8, 4, 1, 2, OL); rect(key, 10, 4, 1, 2, OL)
+save(key, 'key', PICK)
+
 # ---------------- desde el pack: ambulancia y puerta entreabierta ----------------
 if len(sys.argv) > 1:
     SRC = sys.argv[1]

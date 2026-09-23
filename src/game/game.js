@@ -25,7 +25,7 @@ import * as ui from '../ui/ui.js';
 // Modos: menu (escena de fondo) · intro · play · shop · paused · outro · dead · results
 const G = { mode: 'menu', bars: 0, introT: 0, introDur: 0, introFrom: null, playT: 0, deathShown: false, remote: new Map() };
 const WV = { queue: 0, alertQueue: 0, timer: 0, next: 0 };
-const PAR = { 1: 300, 2: 330, 3: 400, 4: 360, 5: 420, 6: 400 };
+const PAR = { 1: 300, 2: 330, 3: 400, 4: 360, 5: 420, 6: 400, 7: 380, 8: 380, 9: 420 };
 const OVERLAY_MODES = new Set(['paused', 'shop']);
 const me = () => S.players[net.me];
 const mp = () => !!net.role;
@@ -35,7 +35,7 @@ function resetState() {
     zombies: [], bullets: [], projectiles: [], pickups: [], particles: [], decals: [], lights: [], floaters: [],
     players: [], t: 0, timeScale: 1, hitstop: 0, shake: 0, wave: 0, kills: 0, shots: 0, hits: 0,
     objective: null, boss: null, heli: null, surge: 0, spawnBoost: 1, over: false, menuMode: false, pings: [],
-    surv: null, zScale: 1, zSpeed: 1, gas: [], npcs: [], flags: new Set(), exitCar: null,
+    surv: null, zScale: 1, zSpeed: 1, gas: [], npcs: [], flags: new Set(), exitCar: null, dawn: 0, gunship: null,
   });
   G.failNpc = null;
   S.cam.cine = null;
@@ -84,7 +84,7 @@ export function menuAudio() {
 }
 
 // Miniaturas reales de cada nivel para las tarjetas del menú
-const THUMB_CAM = { 1: [560, 330], 2: [210, 170], 3: [560, 230], 4: [420, 520], 5: [600, 330], 6: [700, 420] };
+const THUMB_CAM = { 1: [560, 330], 2: [210, 170], 3: [560, 230], 4: [420, 520], 5: [600, 330], 6: [700, 420], 7: [760, 520], 8: [900, 220], 9: [700, 300] };
 export function levelThumbs() {
   const out = {};
   for (const L of LEVELS) {
@@ -174,15 +174,17 @@ export function startLevel(id, opts = {}) {
   });
 }
 
-const NUMS = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho'];
+const NUMS = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
 const CHAPTERS = {
   1: ['22:47', 'Barrio norte'], 2: ['06:10', 'Centro · comisaría'], 3: ['23:58', 'Granja Robles, afueras'],
   4: ['03:12', 'Parque frente al San Rafael'], 5: ['04:40', 'Hospital San Rafael'], 6: ['05:30', 'Estacionamiento de emergencias'],
+  7: ['04:02', 'Puerto Sur · la terminal'], 8: ['04:51', 'La escollera'], 9: ['05:58', 'Muelle norte'],
 };
 function chapterText(L) {
   if (L.survival) return ['SUPERVIVENCIA', L.name, `oleadas sin fin · ${S.diff.name.toLowerCase()}`];
   const [time, place] = CHAPTERS[L.id] || ['', ''];
-  const world = L.id === 4 ? 'MUNDO DOS · ' : L.id === 1 ? 'MUNDO UNO · ' : '';
+  const world = { 1: 'MUNDO UNO · ', 4: 'MUNDO DOS · ', 7: 'MUNDO TRES · ' }[L.id] || '';
+  if (L.id === 9) return ['LA ÚLTIMA NOCHE', L.name, `${time} · ${place}${S.diff.id === 'pesadilla' ? ' · pesadilla' : ''}`];
   return [`${world}NOCHE ${NUMS[L.id - 1].toUpperCase()}`, L.name, `${time} · ${place}${S.diff.id === 'pesadilla' ? ' · pesadilla' : ''}`];
 }
 
@@ -229,7 +231,10 @@ function beginOutro() {
   ui.closeOverlaysForOutro();
   ui.setHud(false);
   ui.prompt(null);
-  ui.subtitles(S.level.outro || []).then(() => { if (net.role !== 'client') showResults(); });
+  const L = S.level;
+  ui.subtitles(L.outro || [], 2000)
+    .then(() => (L.sunrise ? ui.chapterCard('', 'Fin', 'Noche Sin Luna · un juego de Dev-Sot', 5200) : null))
+    .then(() => { if (net.role !== 'client') showResults(); });
 }
 
 bus.on('levelComplete', () => {
@@ -257,6 +262,7 @@ function finale() {
     S.exitCar.leaving = true;
     sfx('generator', 0.7);
   }
+  if (L.sunrise) { setWeather('none'); stopAllAmbient(); }
 }
 
 function stats() {
@@ -717,6 +723,8 @@ function step() {
     }
     if (net.role === 'host' && S.t % 3 === 0) { broadcast(encodeSnapshot(evBuf)); evBuf = []; }
   }
+  // el sol sigue subiendo mientras el barco se aleja
+  if (S.level?.sunrise && G.mode === 'outro') S.dawn += (1 - S.dawn) * 0.004;
   // el tiempo vuelve a velocidad normal después de una cámara lenta
   if (!mp()) S.timeScale += (1 - S.timeScale) * (p.dead ? 0.012 : 0.03);
   else S.timeScale = 1;

@@ -475,3 +475,28 @@ body.touch-device .topControls{ top:14%; bottom:auto; }
     align-items:center; justify-content:center; text-align:center; font-size:22px; line-height:1.8; padding:24px;
   }
 }
+
+/* ---------------- v0.8: mundos y sala en dos columnas ---------------- */
+.crumb{ background:none; border:none; color:var(--dim); font-family:var(--type); font-size:1.05em; cursor:pointer; letter-spacing:.05em; }
+.crumb:hover{ color:var(--bone); }
+.card.world .cap{ font-size:1.8em; }
+.card.world .photo{ filter:sepia(.45) contrast(1.15) brightness(.85); }
+.coop-lobby{ display:grid !important; grid-template-columns:1fr 1.35fr; gap:2.4em; width:88%; align-items:start; }
+.coop-lobby.hidden{ display:none !important; }
+.lobby-col{ display:flex; flex-direction:column; gap:.8em; }
+.lobby-col h4{ margin:.4em 0 0; font-family:var(--title); font-weight:normal; font-size:1.05em; letter-spacing:.35em; text-transform:uppercase; color:var(--blood2); border-bottom:1px solid rgba(158,27,27,.35); padding-bottom:.25em; }
+.coop-lobby .slots{ grid-template-columns:1fr; gap:.5em; }
+.coop-lobby .pslot{ padding:.55em .9em; min-height:4.4em; }
+.coop-lobby .pslot .pn{ font-size:1.25em; }
+.coop-lobby .pslot .ptag{ display:inline; margin-right:.6em; }
+.coop-lobby .pick{ flex-wrap:wrap; }
+.coop-lobby .pick button{ padding:.35em .6em; }
+.coop-lobby .radio{ justify-content:space-between; }
+.coop-lobby .lobby-levels{ grid-template-columns:repeat(3,1fr); gap:.6em; }
+.coop-lobby .lvl{ height:6.2em; font-size:1em; }
+.coop-lobby .lobby-chat .chat-log{ height:5em; }
+.lobby-foot{ display:flex; align-items:center; justify-content:flex-end; gap:1.2em; margin-top:.3em; }
+.lobby-foot .btn{ font-size:1.3em; padding:.6em 2em; }
+.menu-foot a, .credits a{ color:inherit; text-decoration:none; border-bottom:1px dotted currentColor; }
+.menu-foot a:hover, .credits a:hover{ color:var(--bone); }
+.credits .gh{ font-family:var(--vhs); font-size:1.3em; color:var(--dim); border:none; letter-spacing:.08em; }

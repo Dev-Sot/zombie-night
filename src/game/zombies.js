@@ -25,6 +25,8 @@ export const ZTYPES = {
   nurse: { sprite: 'walker', hp: 52, speed: 0.6, dmg: 11, r: 6, coin: 1, filter: 'grayscale(0.55) hue-rotate(150deg) brightness(1.3)' },
   // Paciente Cero: jefe del Mundo 2, vomita gas y embiste
   pzero: { sprite: 'brute', hp: 2300, speed: 0.55, dmg: 30, r: 15, scale: 2.2, knockRes: 0.95, coin: 60, filter: 'grayscale(0.85) brightness(1.4) contrast(1.25)', boss: true, pzero: true },
+  // El Coloso: jefe final, golpea el piso y derriba a los que están cerca
+  colossus: { sprite: 'brute', hp: 3200, speed: 0.5, dmg: 36, r: 17, scale: 2.7, knockRes: 0.97, coin: 80, filter: 'brightness(0.62) contrast(1.4) sepia(0.45)', boss: true, colossus: true },
   boss: { sprite: 'brute', hp: 1700, speed: 0.6, dmg: 30, r: 15, scale: 2.1, knockRes: 0.95, coin: 40, filter: 'hue-rotate(-35deg) saturate(1.5) brightness(0.9)', boss: true },
 };
 
@@ -177,6 +179,18 @@ export function updateZombies() {
     }
     // los lanzadores mantienen distancia
     let sp = z.speed * (z.alert || d < 280 ? 1 : 0.6);
+    if (z.T.colossus) {
+      z.special = (z.special ?? 200) - 1;
+      if (z.special <= 0 && d < 90) {
+        z.special = 280;
+        shake(14); sfx('explosion', 0.8);
+        burst(z.x, z.y, 40, { speed: 3.4, color: '#6b5a48', type: 'smoke', lifeMul: 1.4, grav: 0.02, lift: 0.6, size: 2 });
+        for (const q of [...S.players, ...npcTargets()]) {
+          const dq = dist(q.x, q.y, z.x, z.y);
+          if (dq < 70 && !q.dead) hurtPlayer(q, Math.round(26 * D().zDmg), Math.atan2(q.y - z.y, q.x - z.x), true);
+        }
+      }
+    }
     if (z.T.pzero) {
       z.special = (z.special ?? 240) - 1;
       if (z.special <= 0) { z.special = 330; gasCloud(z.x, z.y - 10); z.charge = 55; sfx('scream'); }

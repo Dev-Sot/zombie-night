@@ -42,7 +42,7 @@ for (const [z, f] of Object.entries(ZOMBIE_FRAMES)) {
   ['side', 'sideleft'].forEach((d) => add(`zombies/${z}_death_${d}`, f.death));
 }
 ENV.forEach((e) => add(`env/${e}`));
-['ammo', 'bandage', 'fuel', 'medkit', 'radio', 'keycard', 'surgkit'].forEach((p) => add(`pickups/${p}`));
+['ammo', 'bandage', 'fuel', 'medkit', 'radio', 'keycard', 'surgkit', 'key'].forEach((p) => add(`pickups/${p}`));
 
 const sheets = {};
 

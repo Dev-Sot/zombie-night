@@ -47,20 +47,17 @@ Plan de desarrollo por fases. Cada fase termina desplegada en Vercel.
 - [x] Paciente Cero, zombie enfermero, ceniza, luces en cadena y final en ambulancia.
 - [x] Selector de mundos.
 
-## Fase 6 — Logros y tabla pública (siguiente)
-- [ ] Logros (primera sangre, sin daño, noche en pesadilla, 1000 bajas, etc.)
-      con aviso en pantalla y pantalla de logros.
-- [ ] Tabla pública de supervivencia por mapa y dificultad: mejor oleada,
-      nombre y fecha. Necesita un backend chico (función serverless en
-      Vercel + base de datos) con validación básica contra trampas.
-- [ ] Estadísticas del jugador (bajas totales, noches jugadas, armas favoritas).
+## Fase 6 — Sobrevivientes e interfaz (completa)
+- [x] Cinco sobrevivientes jugables con habilidad propia y frases.
+- [x] Interfaz de horror cinematográfico y tarjetas de capítulo.
 
-## Mundo 3 — El puerto (idea)
-Lucía conoce un lugar: el puerto. Dicen que todavía salen barcos. Muelles
-con niebla, contenedores como laberinto, un faro que hay que encender y un
-barco que zarpa con o sin vos.
+## Fase 7 — Mundo 3: El Puerto y el final (completa)
+- [x] Noche 7 · Los muelles, Noche 8 · El faro, Noche 9 · Amanecer.
+- [x] Agua, grúa, faro, amanecer, apoyo aéreo de Ramiro y El Coloso.
+- [x] Epílogo y "Fin".
 
 ## Más adelante
 - [ ] Servidor TURN propio para redes muy restrictivas (hoy se usan los STUN públicos).
 - [ ] Balance fino de dificultad con partidas reales.
-- [ ] Logros y estadísticas globales.
+- [ ] Logros locales (sin servidor) y estadísticas del jugador.
+- [ ] Más sobrevivientes con siluetas propias (con un pack de personajes del mismo artista).

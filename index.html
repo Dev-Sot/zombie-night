@@ -106,7 +106,7 @@
         <span class="ss-text"><small>sobreviviente</small><b id="ssName">Tomás</b><em id="ssRole">Electricista</em></span>
       </button>
     </div>
-    <div class="menu-foot">v0.7 · un juego de Dev-Sot</div>
+    <div class="menu-foot">v0.8 · un juego de <a href="https://github.com/Dev-Sot" target="_blank" rel="noopener">Dev-Sot</a></div>
   </div>
 
   <!-- SELECCIÓN DE NOCHE: fotos clavadas en la pared -->
@@ -116,7 +116,7 @@
       <div class="tabs" id="modeToggle"></div>
     </div>
     <div class="board-bar">
-      <div class="tabs small" id="worldToggle"></div>
+      <button class="crumb hidden" id="worldBack">← todos los mundos</button>
       <div class="diff-row"><div class="stamps" id="diffToggle"></div><span class="diff-desc" id="diffDesc"></span></div>
     </div>
     <div class="level-cards" id="levelCards"></div>
@@ -149,20 +149,31 @@
       </div>
     </div>
     <div class="coop-lobby hidden" id="coopLobby">
-      <div class="radio">
-        <div class="radio-screen"><small>FRECUENCIA</small><b id="roomCode">-----</b></div>
-        <button class="btn ghost small" id="btnCopyLink">copiar enlace</button>
-      </div>
-      <div class="slots" id="lobbySlots"></div>
-      <div class="pick-row"><span>tu sobreviviente</span><div class="pick" id="lobbyPick"></div></div>
-      <div class="lobby-levels" id="lobbyLevels"></div>
-      <div class="diff-row"><div class="tabs small" id="lobbyMode"></div><div class="stamps" id="lobbyDiff"></div></div>
-      <div class="lobby-chat">
-        <div class="chat-log open" id="lobbyChatLog"></div>
-        <input class="chat-input" id="lobbyChatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Hablale a la sala y apretá Enter">
-      </div>
-      <div class="lobby-wait" id="lobbyWait">Esperando que el anfitrión empiece...</div>
-      <button class="btn" id="btnStartCoop">empezar</button>
+      <section class="lobby-col">
+        <div class="radio">
+          <div class="radio-screen"><small>FRECUENCIA</small><b id="roomCode">-----</b></div>
+          <button class="btn ghost small" id="btnCopyLink">copiar enlace</button>
+        </div>
+        <h4>sobrevivientes</h4>
+        <div class="slots" id="lobbySlots"></div>
+        <h4>tu sobreviviente</h4>
+        <div class="pick" id="lobbyPick"></div>
+      </section>
+      <section class="lobby-col">
+        <h4>misión</h4>
+        <div class="diff-row"><div class="tabs small" id="lobbyMode"></div><div class="stamps" id="lobbyDiff"></div></div>
+        <div class="tabs small" id="lobbyWorlds"></div>
+        <div class="lobby-levels" id="lobbyLevels"></div>
+        <h4>radio</h4>
+        <div class="lobby-chat">
+          <div class="chat-log open" id="lobbyChatLog"></div>
+          <input class="chat-input" id="lobbyChatInput" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Hablale a la sala y apretá Enter">
+        </div>
+        <div class="lobby-foot">
+          <div class="lobby-wait" id="lobbyWait">Esperando que el anfitrión empiece...</div>
+          <button class="btn" id="btnStartCoop">empezar</button>
+        </div>
+      </section>
     </div>
     <div class="coop-status" id="coopStatus"></div>
     <button class="btn ghost back" id="btnCoopBack">volver</button>
@@ -207,7 +218,7 @@
   <div class="overlay credits-roll hidden" id="creditsMenu">
     <div class="credits">
       <div class="cr-title">Noche Sin Luna</div>
-      <p><small>dirección, diseño y desarrollo</small><b>Dev-Sot</b></p>
+      <p><small>dirección, diseño y desarrollo</small><b>Dev-Sot</b><a class="gh" href="https://github.com/Dev-Sot" target="_blank" rel="noopener">github.com/Dev-Sot</a></p>
       <p><small>personajes, zombies y escenarios</small><b>Post-Apocalypse Pixel Art Asset Pack</b><em>TheLazyStone</em></p>
       <p><small>objetos recogibles</small><b>Zombie Apocalypse Tileset</b><em>Ittai Manero</em></p>
       <p><small>hospital y sobrevivientes</small><b>dibujados para el juego</b></p>

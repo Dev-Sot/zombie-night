@@ -41,6 +41,8 @@ export function encodeSnapshot(events) {
     ct: S.world.containers.map((c) => (c.searched ? 1 : 0)).join(''),
     fl: [...(S.flags || [])],
     ex: S.exitCar ? [r1(S.exitCar.x), S.exitCar.leaving ? 1 : 0] : null,
+    gs: S.gunship ? [r1(S.gunship.x), r1(S.gunship.y)] : null,
+    dw: r2(S.dawn || 0),
     v: S.surv ? [S.surv.wave, S.surv.left, S.surv.total, S.surv.breather] : null,
     e: events,
   };
@@ -101,8 +103,10 @@ export function applySnapshot(s, me) {
   [...(s.dr || '')].forEach((c, i) => { const D = S.world.doors[i]; if (D && c !== '0' && !D.open) openDoor(S.world, D, c === '2'); });
   [...(s.ct || '')].forEach((c, i) => { const C = S.world.containers[i]; if (C && c === '1') searchContainer(S.world, C); });
   S.flags = new Set(s.fl || []);
+  S.dawn = s.dw || 0;
+  if (s.gs) { S.gunship = S.gunship || { x: s.gs[0], y: s.gs[1], t: 0 }; S.gunship.x += (s.gs[0] - S.gunship.x) * 0.5; S.gunship.y += (s.gs[1] - S.gunship.y) * 0.5; } else S.gunship = null;
   if (s.ex) {
-    const m = S.objective?.markers.find((q) => q.type === 'ambulance');
+    const m = S.objective?.markers.find((q) => q.type === 'ambulance' || q.type === 'ship');
     if (m) { m.state = 1; S.exitCar = m; if (!m.leaving) m.x = s.ex[0]; }
   }
   if (s.v && S.surv) [S.surv.wave, S.surv.left, S.surv.total, S.surv.breather] = s.v;
