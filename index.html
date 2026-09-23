@@ -159,7 +159,7 @@
       <b>Busca 3 bidones de combustible</b> sin que te alcancen.
     </div>
     <div class="sub">
-      <b>WASD</b> moverte &nbsp; <b>MOUSE</b> apuntar &nbsp; <b>CLIC</b> disparar &nbsp; <b>R</b> recargar
+      <b>WASD</b> moverte &nbsp; <b>MOUSE</b> apuntar &nbsp; <b>CLIC</b> disparar &nbsp; <b>R</b> recargar &nbsp; <b>F</b> linterna
     </div>
     <button class="btn" id="beginBtn">EMPEZAR</button>
   </div>
@@ -213,6 +213,7 @@ const SPRITE_FILES={
   pickup_fuel:'assets/pickup_fuel.png',
   pickup_health:'assets/pickup_health.png',
   pickup_ammo:'assets/pickup_ammo.png',
+  gun:'assets/gun.png',
   prop_car:'assets/prop_car.png',
   prop_bush:'assets/prop_bush.png',
   prop_fence:'assets/prop_fence.png',
@@ -397,7 +398,7 @@ function worldToScreen(x,y){ return [x-camX, y-camY]; }
 const player={
   x:ARENA_W/2, y:ARENA_H/2, r:6, speed:1.55, hp:100, maxHp:100,
   angle:0, walk:0, mag:8, magSize:8, reserve:32, reloading:false, reloadT:0,
-  fireCd:0, hurtFlash:0, invuln:0, dead:false
+  fireCd:0, hurtFlash:0, invuln:0, dead:false, lightOn:true
 };
 
 // ---------------- state ----------------
@@ -448,7 +449,7 @@ function updateHearts(hp,maxHp){
 
 function resetGame(){
   player.x=ARENA_W/2; player.y=ARENA_H/2; player.hp=100; player.mag=player.magSize; player.reserve=32;
-  player.reloading=false; player.reloadT=0; player.fireCd=0; player.invuln=0; player.dead=false;
+  player.reloading=false; player.reloadT=0; player.fireCd=0; player.invuln=0; player.dead=false; player.lightOn=true;
   zombies=[]; bullets=[]; particles=[]; pickups=[];
   wave=0; killCount=0; t=0;
   setupObjective();
@@ -502,6 +503,7 @@ const keys={};
 window.addEventListener('keydown',(e)=>{
   keys[e.code]=true;
   if(e.code==='KeyR') tryReload();
+  if(e.code==='KeyF') toggleLight();
   if(['KeyW','KeyA','KeyS','KeyD','Space'].includes(e.code)) e.preventDefault();
 });
 window.addEventListener('keyup',(e)=> keys[e.code]=false );
@@ -569,6 +571,12 @@ function tryReload(){
   if(player.reloading || player.mag>=player.magSize || player.reserve<=0) return;
   player.reloading=true; player.reloadT=70;
   sfxReload();
+}
+
+function toggleLight(){
+  if(state!=='playing') return;
+  player.lightOn=!player.lightOn;
+  tone(player.lightOn?900:400, 0.03,'square',0.05);
 }
 
 function endGame(){
@@ -892,9 +900,19 @@ function drawSurvivor(){
   // shadow
   ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(0,7,7,3,0,0,Math.PI*2); ctx.fill();
   drawSpriteEntity('player', player.angle, player.walk*0.6, 1.15, hurt?'brightness(2.2)':null);
+  // held-weapon badge: the base sprite has no weapon pose of its own, so a
+  // small fixed icon stands in until the sprites get swapped for a pack
+  // with real aim/attack animations (see CLAUDE.md).
+  const {group,flip}=dirGroup(player.angle);
+  const gunImg=SPRITES.gun;
+  if(group===1 && gunImg && gunImg.naturalWidth){
+    const s=1.15, gw=gunImg.naturalWidth*s, gh=gunImg.naturalHeight*s;
+    ctx.save();
+    if(flip) ctx.scale(-1,1);
+    ctx.drawImage(gunImg, 4,-8, gw, gh);
+    ctx.restore();
+  }
   ctx.restore();
-  // the sprite's own walk pose already shows the held weapon; aim direction
-  // is communicated by the flashlight cone + the muzzle-flash particle on fire.
 }
 
 const ZSPRITE={ shambler:'zombie_shambler', runner:'zombie_runner', brute:'zombie_brute' };
@@ -949,26 +967,29 @@ function drawFog(){
   fctx.globalCompositeOperation='destination-out';
 
   const [psx,psy]=worldToScreen(player.x,player.y);
-  // ambient radius around player
-  let g=fctx.createRadialGradient(psx,psy,0,psx,psy,56);
+  // ambient radius around player — much smaller with the flashlight off
+  const ambR = player.lightOn ? 56 : 22;
+  let g=fctx.createRadialGradient(psx,psy,0,psx,psy,ambR);
   g.addColorStop(0,'rgba(255,255,255,0.9)');
   g.addColorStop(1,'rgba(255,255,255,0)');
-  fctx.fillStyle=g; fctx.beginPath(); fctx.arc(psx,psy,56,0,Math.PI*2); fctx.fill();
+  fctx.fillStyle=g; fctx.beginPath(); fctx.arc(psx,psy,ambR,0,Math.PI*2); fctx.fill();
 
   // cone flashlight
-  const coneLen=150, coneHalf=0.42;
-  fctx.save();
-  fctx.translate(psx,psy);
-  fctx.rotate(player.angle);
-  const cg=fctx.createRadialGradient(0,0,0,0,0,coneLen);
-  cg.addColorStop(0,'rgba(255,255,255,0.85)');
-  cg.addColorStop(1,'rgba(255,255,255,0)');
-  fctx.fillStyle=cg;
-  fctx.beginPath();
-  fctx.moveTo(0,0);
-  fctx.arc(0,0,coneLen,-coneHalf,coneHalf);
-  fctx.closePath(); fctx.fill();
-  fctx.restore();
+  if(player.lightOn){
+    const coneLen=150, coneHalf=0.42;
+    fctx.save();
+    fctx.translate(psx,psy);
+    fctx.rotate(player.angle);
+    const cg=fctx.createRadialGradient(0,0,0,0,0,coneLen);
+    cg.addColorStop(0,'rgba(255,255,255,0.85)');
+    cg.addColorStop(1,'rgba(255,255,255,0)');
+    fctx.fillStyle=cg;
+    fctx.beginPath();
+    fctx.moveTo(0,0);
+    fctx.arc(0,0,coneLen,-coneHalf,coneHalf);
+    fctx.closePath(); fctx.fill();
+    fctx.restore();
+  }
 
   // lamp light pools
   lamps.forEach(l=>{
