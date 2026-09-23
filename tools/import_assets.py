@@ -65,6 +65,8 @@ copy('Enemies/Shot/shot_1-Sheet3.png', 'fx/blood1.png')
 copy('Enemies/Shot/shot_2-Sheet3.png', 'fx/blood2.png')
 copy('Enemies/Zombie_Axe/Axe/Axe_Side_Thrown-Sheet9.png', 'fx/axe_spin.png')
 copy('Enemies/Zombie_Axe/Axe/Axe_Side_Landed.png', 'fx/axe_landed.png')
+copy('Enemies/Zombie_Axe/Axe/Axe_Side_Landed.png', 'weapons/axe.png')
+copy('Enemies/Zombie_Axe/Axe/Axe_Side_Landed.png', 'ui/icon_axe.png')
 
 # ---------------- zombies ----------------
 ZB = 'Enemies'

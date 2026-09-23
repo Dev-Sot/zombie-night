@@ -27,7 +27,7 @@ const add = (key, frames = 1) => MANIFEST.push({ key, frames });
 
 DIR4.forEach((d) => { add(`char/run_${d}`, 6); add(`char/idle_${d}`, 6); });
 add('char/death_side', 6); add('char/death_sideleft', 6);
-['pistol', 'shotgun', 'rifle', 'bat'].forEach((w) => add(`weapons/${w}`));
+['pistol', 'shotgun', 'rifle', 'bat', 'axe'].forEach((w) => add(`weapons/${w}`));
 add('fx/muzzle', 3); add('fx/blood1', 3); add('fx/blood2', 3); add('fx/axe_spin', 9); add('fx/axe_landed');
 for (const [z, f] of Object.entries(ZOMBIE_FRAMES)) {
   DIR4.forEach((d) => { add(`zombies/${z}_walk_${d}`, f.walk); add(`zombies/${z}_attack_${d}`, f.attack); });

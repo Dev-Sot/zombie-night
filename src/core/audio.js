@@ -135,6 +135,11 @@ const SFX = {
   ping(t) { osc('sine', 1560, 0, t, 0.07, 0.12); osc('sine', 2080, 0, t + 0.07, 0.12, 0.1); },
   chat(t) { osc('triangle', 880, 0, t, 0.05, 0.07); },
   reloadRifle(t) { SFX.reload(t); },
+  scream(t) {
+    osc('sawtooth', 260, 980, t, 0.55, 0.22, sfxBus, ['bandpass', 1400]);
+    osc('sawtooth', 390, 1200, t + 0.03, 0.5, 0.14, sfxBus, ['bandpass', 1900]);
+    nz('bandpass', 2600, t, 0.6, 0.18, 1.5, sfxBus, 4200);
+  },
   pump(t) { nz('bandpass', 1800, t, 0.06, 0.25, 2); nz('bandpass', 1200, t + 0.14, 0.07, 0.3, 2); },
   zattack(t, v = 1) { SFX.groan(t, v * 1.2); },
 };

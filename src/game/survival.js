@@ -11,7 +11,7 @@ import { float, light } from './fx.js';
 export const BREATHER = 60 * 8;
 const FIRST_DELAY = 60 * 6;
 // [tipo, peso, desde qué oleada]
-const MIX = [['walker', 6, 1], ['runner', 3, 2], ['thrower', 2, 3], ['brute', 1, 5], ['toxic', 2, 7]];
+const MIX = [['walker', 6, 1], ['runner', 3, 2], ['thrower', 2, 3], ['screamer', 1, 4], ['brute', 1, 5], ['bloater', 1, 6], ['toxic', 2, 7]];
 
 export const SURVIVAL_DESC = {
   1: 'El barrio bajo la lluvia. Calles abiertas, poca cobertura.',

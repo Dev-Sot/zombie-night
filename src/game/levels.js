@@ -7,9 +7,9 @@ const walk = (x, y, w, h) => ({ tile: 'ground_sidewalk', x, y, w, h, road: true,
 const gravel = (x, y, w, h) => ({ tile: 'ground_cobble', x, y, w, h, road: true, filter: 'sepia(0.7) brightness(0.62) saturate(0.8)' });
 
 // mezcla de zombies: [tipo, peso, desde qué oleada]
-const MIX_1 = [['walker', 6, 1], ['runner', 3, 2], ['brute', 1, 4]];
-const MIX_2 = [['walker', 5, 1], ['runner', 3, 1], ['thrower', 2, 2], ['brute', 1, 3], ['toxic', 1, 5]];
-const MIX_3 = [['walker', 4, 1], ['runner', 3, 1], ['thrower', 2, 1], ['brute', 2, 2], ['toxic', 2, 2]];
+const MIX_1 = [['walker', 6, 1], ['runner', 3, 2], ['brute', 1, 4], ['screamer', 1, 3]];
+const MIX_2 = [['walker', 5, 1], ['runner', 3, 1], ['thrower', 2, 2], ['brute', 1, 3], ['toxic', 1, 5], ['screamer', 1, 2], ['bloater', 1, 4]];
+const MIX_3 = [['walker', 4, 1], ['runner', 3, 1], ['thrower', 2, 1], ['brute', 2, 2], ['toxic', 2, 2], ['screamer', 1, 1], ['bloater', 2, 2]];
 
 export const LEVELS = [
   // =========================================================================

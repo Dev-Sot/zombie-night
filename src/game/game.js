@@ -8,7 +8,7 @@ import { save, recordWin, recordSurvival } from '../core/save.js';
 import { buildWorld, drawGround, worldDrawables, moveEntity } from './world.js';
 import { settings as fxSettings, updateFx, drawDecals, drawParticles, drawFloaters, setWeather, updateWeather, drawWeather, drawLighting, drawCinema, light } from './fx.js';
 import { updateBullets, drawBullets, WEAPONS, ORDER } from './weapons.js';
-import { spawnZombie, updateZombies, zombieDrawables, pickSpawnPoint } from './zombies.js';
+import { spawnZombie, updateZombies, zombieDrawables, pickSpawnPoint, drawGas } from './zombies.js';
 import { updatePickups, drawPickups, pickupLights, addPickup } from './pickups.js';
 import { DIFFS, priceOf, bestKey } from './difficulty.js';
 import { createPlayer, updatePlayer, playerDrawables, updateRevives } from './player.js';
@@ -33,7 +33,7 @@ function resetState() {
     zombies: [], bullets: [], projectiles: [], pickups: [], particles: [], decals: [], lights: [], floaters: [],
     players: [], t: 0, timeScale: 1, hitstop: 0, shake: 0, wave: 0, kills: 0, shots: 0, hits: 0,
     objective: null, boss: null, heli: null, surge: 0, spawnBoost: 1, over: false, menuMode: false, pings: [],
-    surv: null, zScale: 1, zSpeed: 1,
+    surv: null, zScale: 1, zSpeed: 1, gas: [],
   });
   S.cam.cine = null;
   Object.assign(WV, { queue: 0, alertQueue: 0, timer: 0, next: 60 * 12 });
@@ -623,7 +623,7 @@ function step() {
 }
 
 // Cliente: predice su propio movimiento, interpola al resto y manda su input
-const SEND_KEYS = ['Space', 'KeyR', 'KeyQ', 'KeyF', 'KeyE', 'Digit1', 'Digit2', 'Digit3', 'Digit4'];
+const SEND_KEYS = ['Space', 'KeyR', 'KeyQ', 'KeyF', 'KeyE', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'];
 let pendingKeys = new Set(), pendingWheel = 0;
 function clientStep(p) {
   const c = p.control, active = c === localControl;
@@ -733,6 +733,7 @@ function render() {
   const extra = [...pickupLights(), ...markerLights()];
   if (S.level.shop && !S.menuMode) extra.push({ x: S.level.shop.x, y: S.level.shop.y - 10, r: 46, a: 0.7, color: 'rgba(255,190,90,' });
   drawLighting(extra);
+  drawGas();
   drawParticles(true);
   drawFloaters();
   drawWeather();

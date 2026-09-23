@@ -12,9 +12,10 @@ export const WEAPONS = {
   bat: { name: 'Bate', melee: true, sprite: 'weapons/bat', icon: 'bat', dmg: 36, cd: 26, range: 24, arc: 1.5, knock: 5, grip: [0.8, 0.85], ang0: -2.35 },
   pistol: { name: 'Pistola', sprite: 'weapons/pistol', icon: 'pistol', ammo: 'pistol', mag: 12, dmg: 22, cd: 12, spread: 0.05, pellets: 1, speed: 8, reload: 55, knock: 1.4, recoil: 2, shake: 1.5, sfx: 'pistol', grip: [0.2, 0.7], ang0: 0 },
   shotgun: { name: 'Escopeta', sprite: 'weapons/shotgun', icon: 'shotgun', ammo: 'shotgun', mag: 6, dmg: 14, cd: 34, spread: 0.34, pellets: 7, speed: 7, reload: 80, knock: 3.4, recoil: 4, shake: 4, sfx: 'shotgun', grip: [0.25, 0.6], ang0: 0 },
+  axe: { name: 'Hacha', melee: true, sprite: 'weapons/axe', icon: 'axe', dmg: 64, cd: 40, range: 27, arc: 1.8, knock: 7, grip: [0.12, 0.2], ang0: 0.54, heavy: true },
   rifle: { name: 'Rifle', sprite: 'weapons/rifle', icon: 'rifle', ammo: 'rifle', mag: 30, dmg: 16, cd: 6, spread: 0.07, pellets: 1, speed: 9.5, reload: 90, auto: true, knock: 1.1, recoil: 1.5, shake: 1.2, sfx: 'rifle', grip: [0.3, 0.65], ang0: 0 },
 };
-export const ORDER = ['bat', 'pistol', 'shotgun', 'rifle'];
+export const ORDER = ['bat', 'pistol', 'shotgun', 'rifle', 'axe'];
 
 // posición de la mano/boca del arma a partir del ángulo de apuntado
 export function weaponPose(p) {
@@ -64,7 +65,7 @@ export function tryFire(p) {
 function swing(p, w) {
   p.fireCd = w.cd;
   p.swingT = 14;
-  sfx('swing');
+  sfx('swing', w.heavy ? 1.3 : 1);
   let hit = false;
   for (const z of S.zombies) {
     if (z.state === 'dying' || z.state === 'dead') continue;
@@ -80,7 +81,7 @@ function swing(p, w) {
     if (!pr.def?.explosive) continue;
     if (dist(pr.x + pr.w / 2, pr.y + pr.h - 4, p.x, p.y) < w.range + 6) { hitProp(pr, w.dmg, p); hit = true; }
   }
-  if (hit) { sfx('bat'); shake(3); S.hitstop = 2; }
+  if (hit) { sfx('bat', w.heavy ? 1.3 : 1); shake(w.heavy ? 5 : 3); S.hitstop = w.heavy ? 4 : 2; }
 }
 
 export function startReload(p) {

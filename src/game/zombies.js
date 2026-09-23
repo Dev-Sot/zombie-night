@@ -3,9 +3,9 @@ import { frame, ctx, sx, sy, onScreen } from '../core/render.js';
 import { S, rand, pick, dist, bus } from '../core/state.js';
 import { sfx } from '../core/audio.js';
 import { moveEntity, lineClear, flowTarget, bulletSolidAt, updateFlow, cellFree } from './world.js';
-import { blood, splat, float, shake, burst } from './fx.js';
+import { blood, splat, float, shake, burst, light } from './fx.js';
 import { hurtPlayer } from './player.js';
-import { dropLoot } from './pickups.js';
+import { dropLoot, addPickup } from './pickups.js';
 
 const D = () => S.diff || { zHp: 1, zDmg: 1, zSpeed: 1, loot: 1 };
 
@@ -15,6 +15,10 @@ export const ZTYPES = {
   thrower: { sprite: 'thrower', hp: 52, speed: 0.5, dmg: 9, r: 6, coin: 2, ranged: true },
   brute: { sprite: 'brute', hp: 200, speed: 0.42, dmg: 22, r: 9, scale: 1.2, knockRes: 0.75, coin: 4 },
   toxic: { sprite: 'runner', hp: 30, speed: 1.45, dmg: 8, r: 5, coin: 2, filter: 'hue-rotate(75deg) saturate(1.7)' },
+  // gritón: al verte grita, alerta a la horda y llama corredores
+  screamer: { sprite: 'walker', hp: 40, speed: 0.72, dmg: 6, r: 6, coin: 3, filter: 'grayscale(0.75) brightness(1.4) contrast(1.15)', screamer: true },
+  // hinchado: lento, revienta en una nube tóxica al morir o al alcanzarte
+  bloater: { sprite: 'brute', hp: 95, speed: 0.34, dmg: 0, r: 10, scale: 1.35, knockRes: 0.5, coin: 3, filter: 'hue-rotate(55deg) saturate(1.8) brightness(1.08)', bloater: true },
   boss: { sprite: 'brute', hp: 1700, speed: 0.6, dmg: 30, r: 15, scale: 2.1, knockRes: 0.95, coin: 40, filter: 'hue-rotate(-35deg) saturate(1.5) brightness(0.9)', boss: true },
 };
 
@@ -71,6 +75,10 @@ function killZombie(z, angle, by) {
   const coins = z.T.coin;
   if (by) { by.coins += coins; float(z.x, z.y - 18 * z.scale, `+${coins}`); bus.emit('coins'); }
   dropLoot(z.x, z.y, z.T.boss ? 1 : 0.18 * D().loot);
+  // el lanzador puede soltar su hacha (si alguien del equipo no la tiene)
+  if (z.type === 'thrower' && Math.random() < 0.3 && !S.pickups.some((p) => p.weapon === 'axe')
+    && S.players.some((p) => !p.gone && !p.inv.weapons.includes('axe'))) addPickup('weapon', z.x, z.y + 2, { weapon: 'axe', life: 1500 });
+  if (z.T.bloater) gasCloud(z.x, z.y - 6);
   bus.emit('kill', z);
 }
 
@@ -115,6 +123,11 @@ export function updateZombies() {
       if (z.anim >= frames) { z.state = 'walk'; z.atkCd = z.T.boss ? 40 : 55; }
       continue;
     }
+    if (z.state === 'scream') {
+      z.anim += 0.12;
+      if (z.anim >= ZOMBIE_FRAMES.walker.attack) { z.state = 'walk'; z.anim = 0; }
+      continue;
+    }
     if (z.state === 'throw') {
       z.anim += 0.2;
       if (!z.hitDone && z.anim >= 5) {
@@ -128,7 +141,9 @@ export function updateZombies() {
     }
 
     z.atkCd--; z.throwCd--;
+    if (z.T.screamer && !z.screamed && d < 170 && lineClear(z.x, z.y - 8, p.x, p.y - 8)) { scream(z); continue; }
     const reach = z.r + p.r + 4 * z.scale;
+    if (z.T.bloater && d < reach + 4) { damageZombie(z, 1e6, Math.atan2(dy, dx), 0, null); continue; }
     if (d < reach && z.atkCd <= 0) {
       z.state = 'attack'; z.anim = 0; z.hitDone = false;
       if (Math.random() < 0.5) sfx('zattack', z.T.boss ? 1 : 0.7);
@@ -178,6 +193,7 @@ export function updateZombies() {
     }
   }
   S.projectiles = S.projectiles.filter((pr) => pr.life > 0);
+  updateGas();
 }
 
 // escena del menú: los zombies deambulan entre puntos al azar, sin atacar
@@ -189,6 +205,51 @@ function wander(z) {
   if (Math.hypot(z.x - ox, z.y - oy) < 0.05) z.wx = null;
   z.dir = dirFrom(dx, dy);
   z.anim += 0.08;
+}
+
+function scream(z) {
+  z.screamed = true; z.state = 'scream'; z.anim = 0;
+  sfx('scream');
+  shake(4);
+  light(z.x, z.y - 10, 170, 'rgba(210,220,255,', 40);
+  float(z.x, z.y - 30, 'GRITO', '#e8e2c8');
+  burst(z.x, z.y - 12, 18, { speed: 2.6, color: '#d8dce8', type: 'spark', lifeMul: 0.5, grav: 0, size: 1 });
+  for (const o of S.zombies) if (dist(o.x, o.y, z.x, z.y) < 360) o.alert = true;
+  // refuerzos
+  for (let i = 0; i < 3; i++) { const sp = pickSpawnPoint(); if (sp) { const r = spawnZombie('runner', sp.x, sp.y); r.alert = true; } }
+}
+
+// nube tóxica del hinchado: daña a quien quede adentro (también a zombies)
+function gasCloud(x, y) {
+  (S.gas ||= []).push({ x, y, t: 260 });
+  burst(x, y, 30, { speed: 2.4, color: '#8fcf4a', type: 'smoke', lifeMul: 2, grav: -0.02, lift: 1.2, size: 3 });
+  sfx('explosion', 0.45);
+  shake(5);
+}
+function updateGas() {
+  if (!S.gas?.length) return;
+  for (const g of S.gas) {
+    g.t--;
+    if (g.t % 6 === 0) burst(g.x + rand(-22, 22), g.y + rand(-12, 12), 2, { speed: 0.3, color: Math.random() < 0.5 ? '#7fbf3a' : '#a6d85a', type: 'smoke', lifeMul: 2.4, grav: -0.015, lift: 0.4, size: 3 });
+    if (g.t % 30 !== 0) continue;
+    for (const p of S.players) if (!p.dead && dist(p.x, p.y, g.x, g.y) < 36) hurtPlayer(p, Math.round(6 * D().zDmg), Math.atan2(p.y - g.y, p.x - g.x), true);
+    for (const o of S.zombies) if (!o.T.bloater && o.state !== 'dying' && o.state !== 'dead' && dist(o.x, o.y, g.x, g.y) < 36) damageZombie(o, 8, 0, 0, null);
+  }
+  S.gas = S.gas.filter((g) => g.t > 0);
+}
+
+// la nube se dibuja encima de la oscuridad: un gas que brilla apenas, verdoso
+export function drawGas() {
+  for (const g of S.gas || []) {
+    if (!onScreen(g.x, g.y, 50)) continue;
+    const a = Math.min(1, g.t / 60) * 0.32, X = sx(g.x), Y = sy(g.y);
+    for (let i = 0; i < 3; i++) {
+      const ox = Math.sin(S.t * 0.03 + i * 2.1) * 8, oy = Math.cos(S.t * 0.025 + i * 1.7) * 4;
+      const grd = ctx.createRadialGradient(X + ox, Y + oy, 0, X + ox, Y + oy, 30);
+      grd.addColorStop(0, `rgba(140,210,70,${a})`); grd.addColorStop(1, 'rgba(140,210,70,0)');
+      ctx.fillStyle = grd; ctx.beginPath(); ctx.ellipse(X + ox, Y + oy, 34, 20, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
 }
 
 export function zombieDrawables() {
@@ -213,12 +274,15 @@ function drawZombie(z) {
   }
   if (z.state === 'dying' || z.state === 'dead') {
     frame(`zombies/${t}_death_${z.deathDir}`, Math.min(z.deathT, F.death - 1), z.x, z.y, { scale: z.scale, filter: filt, alpha });
-  } else if (z.state === 'attack') {
+  } else if (z.state === 'attack' || z.state === 'scream') {
     frame(`zombies/${t}_attack_${z.dir}`, Math.min(z.anim, F.attack - 1), z.x, z.y, { scale: z.scale, filter: filt });
   } else if (z.state === 'throw') {
     frame(`zombies/thrower_attack_${z.dir}`, Math.min(z.anim, F.attack - 1), z.x, z.y, { scale: z.scale, filter: filt });
   } else {
     frame(`zombies/${t}_walk_${z.dir}`, z.anim, z.x, z.y, { scale: z.scale, filter: filt });
+  }
+  if (z.T.screamer && !z.screamed && z.state === 'walk' && Math.floor(S.t / 15) % 2) {
+    ctx.fillStyle = '#e8e2c8'; ctx.fillRect(sx(z.x), sy(z.y - 26), 1, 3); ctx.fillRect(sx(z.x), sy(z.y - 22), 1, 1);
   }
   // barra de vida (solo si está herido y no es el jefe: el jefe tiene la suya en el HUD)
   if (!z.T.boss && z.hp < z.maxHp && z.state !== 'dying' && z.state !== 'dead') {
